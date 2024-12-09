@@ -40,16 +40,16 @@ class _CachedImageWidgetState extends State<CachedImageWidget>
           // Hiển thị khung ảnh với màu cơ bản và biểu tượng loading
           return Container(
             color: Colors.grey[300],
-            height: 250, // Chiều cao khung ảnh tạm thời
+            height: 300, // Chiều cao khung ảnh tạm thời
             child: Center(
               child: CircularProgressIndicator(),
             ),
           );
         } else if (snapshot.hasError) {
-          // Hiển thị khung ảnh lỗi với màu cơ bản
+          // Hiển thị khung ảnh lỗi với màu cơ bản và biểu tượng lỗi
           return Container(
             color: Colors.grey[300],
-            height: 250, // Chiều cao khung ảnh tạm thời
+            height: 300, // Chiều cao khung ảnh tạm thời
             child: Center(
               child: Icon(Icons.broken_image, color: Colors.grey),
             ),
@@ -75,7 +75,7 @@ class ChapterReaderScreen extends StatefulWidget {
 class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   final CacheManager cacheManager = DefaultCacheManager();
   late Future<List<String>> chapterPages; // Danh sách URL của tất cả các trang
-  final List<String> displayedPages = []; // Danh sách các trang đang hiển thị
+  final List<String?> displayedPages = []; // Danh sách các trang đang hiển thị
   int currentPageIndex = 0; // Chỉ mục của trang đã hiển thị cuối cùng
   final int loadBatchSize = 10; // Số trang tải mỗi lần
   bool isLoading = false; // Trạng thái tải trang tiếp theo
@@ -85,42 +85,64 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     super.initState();
     chapterPages = MangaDexService().fetchChapterPages(widget.chapterId);
 
-    // Bắt đầu tải 10 trang đầu tiên
+    // Bắt đầu tải trang
     chapterPages.then((pages) {
       _loadNextBatch(pages);
     });
   }
 
-  /// Tải thêm các trang tiếp theo
   void _loadNextBatch(List<String> pages) async {
     if (isLoading || currentPageIndex >= pages.length) return;
 
     setState(() {
       isLoading = true;
+
+      // Tính số lượng ảnh sẽ tải
+      final nextBatchCount = (currentPageIndex + loadBatchSize).clamp(0, pages.length) - currentPageIndex;
+
+      // Thêm placeholder vào danh sách
+      displayedPages.addAll(List.filled(nextBatchCount, null));
     });
 
-    final nextBatch = pages.sublist(
-      currentPageIndex,
-      (currentPageIndex + loadBatchSize).clamp(0, pages.length),
-    );
+    final batchStartIndex = currentPageIndex;
+    final batchEndIndex = (currentPageIndex + loadBatchSize).clamp(0, pages.length);
 
-    displayedPages.addAll(nextBatch);
-    currentPageIndex += loadBatchSize;
+    for (int i = batchStartIndex; i < batchEndIndex; i++) {
+      if (!mounted) return; // Kiểm tra nếu widget đã bị hủy
 
-    // Preload ảnh
-    for (String url in nextBatch) {
-      cacheManager.getSingleFile(url);
+      try {
+        final imageUrl = pages[i];
+
+        // Tải ảnh về cache
+        await cacheManager.getSingleFile(imageUrl);
+
+        // Cập nhật URL ảnh vào danh sách nếu còn trong giới hạn
+        if (!mounted) return;
+        setState(() {
+          if (i < displayedPages.length) {
+            displayedPages[i] = imageUrl;
+          }
+        });
+      } catch (error) {
+        // Giữ placeholder nếu lỗi tải ảnh
+        if (!mounted) return;
+        setState(() {
+          if (i < displayedPages.length) {
+            displayedPages[i] = null; // Placeholder khi lỗi
+          }
+        });
+      }
     }
 
-    // Gọi lại _loadNextBatch để tiếp tục tải batch mới nếu còn trang
-    if (currentPageIndex < pages.length) {
-      _loadNextBatch(pages);
-    }
+    if (!mounted) return;
 
     setState(() {
+      currentPageIndex = batchEndIndex;
       isLoading = false;
     });
   }
+
+
 
   @override
   void dispose() {
@@ -149,13 +171,10 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
 
           return NotificationListener<ScrollNotification>(
             onNotification: (ScrollNotification notification) {
-              // Kiểm tra nếu người dùng kéo gần đến cuối danh sách
-              if (notification.metrics.pixels >=
-                  notification.metrics.maxScrollExtent - 200) {
-                // Gọi lại _loadNextBatch để tải thêm nếu cần thiết
-                if (!isLoading) {
-                  _loadNextBatch(allPages);
-                }
+              if (!isLoading &&
+                  notification.metrics.pixels >=
+                      notification.metrics.maxScrollExtent - 200) {
+                _loadNextBatch(allPages);
               }
               return true;
             },
@@ -163,14 +182,25 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
               itemCount: displayedPages.length + (isLoading ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index >= displayedPages.length) {
-                  return Center(child: CircularProgressIndicator());
+                  return SizedBox.shrink(); // Trả về widget trống nếu truy cập ngoài phạm vi
+                }
+
+                final imageUrl = displayedPages[index];
+                if (imageUrl == null) {
+                  // Placeholder khi ảnh đang được tải
+                  return Container(
+                    color: Colors.grey[300],
+                    height: 250,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
 
                 return CachedImageWidget(
-                  imageUrl: displayedPages[index],
+                  imageUrl: imageUrl,
                   cacheManager: cacheManager,
                 );
               },
+
             ),
           );
         },
