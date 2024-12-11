@@ -76,7 +76,6 @@ class ImageLoader {
 
     Future<void> _loadImage(String imageUrl, int index) async {
       try {
-        final file = await cacheManager.getSingleFile(imageUrl);
         displayedPages[index] = imageUrl;
         onImageLoaded(index); // Cập nhật giao diện
       } catch (error) {
