@@ -1,11 +1,6 @@
-import '../services/manga_grid_view.dart';
-import 'manga_detail_screen.dart';
-import 'package:flutter/material.dart';
-import '../services/manga_dex_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-
 import 'manga_search_screen.dart';
+import 'package:flutter/material.dart';
+import '../services/manga_grid_view.dart';
 
 class MangaListScreen extends StatefulWidget {
   @override
