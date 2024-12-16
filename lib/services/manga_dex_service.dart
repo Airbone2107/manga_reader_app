@@ -13,23 +13,58 @@ class MangaDexService {
   }
 
   // Lấy danh sách manga
-  Future<List<dynamic>> fetchMangaList(
-      {required int limit, required int offset}) async {
-    final response =
-        await http.get(Uri.parse('$baseUrl/manga?limit=$limit&offset=$offset'));
+  Future<List<dynamic>> fetchManga({
+    // Các tham số cơ bản cho pagination (Phân Trang)
+    int? limit,
+    int? offset,
+    // Các tham số để tìm kiếm
+    String? title,
+    List<String>? includedTags,
+    List<String>? excludedTags,
+    String? safety,
+    String? status,
+    String? demographic,
+    String? sortBy,
+  }) async {
+    // Xây dựng parameters cho request
+    Map<String, dynamic> params = {};
+
+    // Thêm các tham số pagination nếu có
+    if (limit != null) params['limit'] = limit.toString();
+    if (offset != null) params['offset'] = offset.toString();
+
+    // Thêm các tham số tìm kiếm nâng cao nếu có
+    if (title != null && title.isNotEmpty) params['title'] = title;
+    if (includedTags != null && includedTags.isNotEmpty) {
+      params['includedTags[]'] = includedTags;
+    }
+    if (excludedTags != null && excludedTags.isNotEmpty) {
+      params['excludedTags[]'] = excludedTags;
+    }
+    if (safety != null && safety != 'Tất cả') {
+      params['contentRating[]'] = [safety.toLowerCase()];
+    }
+    if (status != null && status != 'Tất cả') {
+      params['status[]'] = [status.toLowerCase()];
+    }
+    if (demographic != null && demographic != 'Tất cả') {
+      params['publicationDemographic[]'] = [demographic.toLowerCase()];
+    }
+    if (sortBy != null) {
+      params['order[updatedAt]'] = sortBy == 'Mới cập nhật' ? 'desc' : 'asc';
+    }
+
+    final uri = Uri.parse('$baseUrl/manga').replace(queryParameters: params);
+    final response = await http.get(uri);
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      return data['data']; // Trả về danh sách manga
+      return data['data'];
     } else if (response.statusCode == 503) {
-      // Nếu gặp lỗi 503 (Bảo trì), ném lỗi với thông báo cụ thể
-      throw Exception(
-          'Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
+      throw Exception('Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
     } else {
-      logError('fetchMangaList',
-          response); // Ghi log lỗi nếu không phải mã trạng thái 200 hoặc 503
-      throw Exception(
-          'Lỗi khi tải manga với mã trạng thái: ${response.statusCode}');
+      logError('fetchManga', response);
+      throw Exception('Lỗi khi tải manga: ${response.statusCode}');
     }
   }
 
@@ -122,42 +157,11 @@ class MangaDexService {
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      return data['data'] ?? []; // Trả về toàn bộ dữ liệu tag, bao gồm id và attributes
+      return data['data'] ??
+          []; // Trả về toàn bộ dữ liệu tag, bao gồm id và attributes
     } else {
       logError('fetchTags', response);
       throw Exception('Lỗi khi tải danh sách tags');
     }
   }
-
-  Future<List<dynamic>> advancedSearch({
-    required String title,
-    required List<String> includedTags,
-    required List<String> excludedTags,
-    required String safety,
-    required String status,
-    required String demographic,
-    required String sortBy,
-  }) async {
-    Map<String, dynamic> params = {
-      if (title.isNotEmpty) 'title': title,
-      if (includedTags.isNotEmpty) 'includedTags[]': includedTags,
-      if (excludedTags.isNotEmpty) 'excludedTags[]': excludedTags,
-      if (safety != 'Tất cả') 'contentRating[]': [safety.toLowerCase()],
-      if (status != 'Tất cả') 'status[]': [status.toLowerCase()],
-      if (demographic != 'Tất cả') 'publicationDemographic[]': [demographic.toLowerCase()],
-      'order[updatedAt]': sortBy == 'Mới cập nhật' ? 'desc' : 'asc',
-    };
-
-    final uri = Uri.parse('$baseUrl/manga').replace(queryParameters: params);
-    final response = await http.get(uri);
-
-    if (response.statusCode == 200) {
-      var data = jsonDecode(response.body);
-      return data['data'];
-    } else {
-      logError('advancedSearch', response);
-      throw Exception('Lỗi khi thực hiện tìm kiếm nâng cao: ${response.statusCode}');
-    }
-  }
-
 }

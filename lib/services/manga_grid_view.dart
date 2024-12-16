@@ -5,8 +5,25 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class MangaGridView extends StatefulWidget {
-  final List<dynamic>? initialMangas; // Thêm tham số này
-  const MangaGridView({Key? key, this.initialMangas}) : super(key: key);
+  //Các tham số phục cho việc Filter
+  final String? title;
+  final List<String>? includedTags;
+  final List<String>? excludedTags;
+  final String? safety;
+  final String? status;
+  final String? demographic;
+  final String? sortBy;
+
+  const MangaGridView({
+    Key? key,
+    this.title,
+    this.includedTags,
+    this.excludedTags,
+    this.safety,
+    this.status,
+    this.demographic,
+    this.sortBy,
+  }) : super(key: key);
 
   @override
   _MangaGridViewState createState() => _MangaGridViewState();
@@ -24,11 +41,7 @@ class _MangaGridViewState extends State<MangaGridView> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialMangas != null) {
-      mangas = widget.initialMangas!;
-    } else {
-      _loadMangas();
-    }
+    _loadMangas();
     _scrollController.addListener(_onScroll);
   }
 
@@ -37,8 +50,21 @@ class _MangaGridViewState extends State<MangaGridView> {
     setState(() => isLoading = true);
 
     try {
-      var newMangas = await _service.fetchMangaList(limit: 21, offset: offset);
+      var newMangas = await _service.fetchManga(
+        //Tham số phân trang
+        limit: 21,
+        offset: offset,
+        // Các tham số filter nếu có
+        title: widget.title,
+        includedTags: widget.includedTags,
+        excludedTags: widget.excludedTags,
+        safety: widget.safety,
+        status: widget.status,
+        demographic: widget.demographic,
+        sortBy: widget.sortBy,
+      );
       setState(() {
+        //Kiểm tra để tránh trùng manga
         for (var manga in newMangas) {
           if (!mangas.any((existingManga) => existingManga['id'] == manga['id'])) {
             mangas.add(manga);

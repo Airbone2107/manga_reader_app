@@ -1,5 +1,5 @@
+import 'manga_list_search.dart';
 import 'package:flutter/material.dart';
-import '../services/manga_grid_view.dart';
 import '../services/manga_dex_service.dart';
 
 class TagInfo {
@@ -59,22 +59,26 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
 
   Future<void> _performSearch() async {
     setState(() => isLoading = true);
+
     try {
-      List<dynamic> mangas = await _service.advancedSearch(
-        title: _searchController.text.trim(),
-        includedTags: selectedTagIds.toList(), // Sử dụng ID thay vì tên
-        excludedTags: excludedTagIds.toList(), // Sử dụng ID thay vì tên
-        safety: safetyFilter,
-        status: statusFilter,
-        demographic: demographicFilter,
-        sortBy: sortBy,
+      // Chuyển đến MangaGridView với các tham số filter
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MangaListSearch(
+            title: _searchController.text.trim(),
+            includedTags: selectedTagIds.toList(),
+            excludedTags: excludedTagIds.toList(),
+            safety: safetyFilter,
+            status: statusFilter,
+            demographic: demographicFilter,
+            sortBy: sortBy,
+          ),
+        ),
       );
-      setState(() {
-        filteredMangas = mangas;
-      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không tải được danh sách truyện. Vui lòng thử lại!')),
+        SnackBar(content: Text('Có lỗi xảy ra. Vui lòng thử lại!')),
       );
     } finally {
       setState(() => isLoading = false);
@@ -85,7 +89,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Tìm Truyện Nâng Cao')),
-      body: Column(
+      body: ListView(
+        padding: EdgeInsets.symmetric(vertical: 16.0),
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -97,69 +102,45 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              children: [
-                ExpansionTile(
-                  title: Text('Tags'),
-                  children: _buildTagsList(),
-                ),
-                SizedBox(height: 16),
-                _buildComboBox(
-                  label: 'Độ an toàn',
-                  items: [
-                    'Tất cả',
-                    'safe',
-                    'suggestive',
-                    'erotica',
-                    'pornographic'
-                  ],
-                  value: safetyFilter,
-                  onChanged: (value) => setState(() => safetyFilter = value!),
-                ),
-                _buildComboBox(
-                  label: 'Tình trạng',
-                  items: [
-                    'Tất cả',
-                    'ongoing',
-                    'completed',
-                    'hiatus',
-                    'cancelled'
-                  ],
-                  value: statusFilter,
-                  onChanged: (value) => setState(() => statusFilter = value!),
-                ),
-                _buildComboBox(
-                  label: 'Dành cho',
-                  items: ['Tất cả', 'shounen', 'shoujo', 'seinen', 'josei'],
-                  value: demographicFilter,
-                  onChanged: (value) =>
-                      setState(() => demographicFilter = value!),
-                ),
-                _buildComboBox(
-                  label: 'Sắp xếp theo',
-                  items: ['Mới cập nhật', 'Truyện mới', 'Theo dõi nhiều nhất'],
-                  value: sortBy,
-                  onChanged: (value) => setState(() => sortBy = value!),
-                ),
-                SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: ElevatedButton(
-                    onPressed: _performSearch,
-                    child: isLoading
-                        ? CircularProgressIndicator(color: Colors.white)
-                        : Text('Tìm kiếm'),
-                  ),
-                ),
-              ],
+          ExpansionTile(
+            title: Text('Tags'),
+            children: _buildTagsList(),
+          ),
+          SizedBox(height: 16),
+          _buildComboBox(
+            label: 'Độ an toàn',
+            items: ['Tất cả', 'safe', 'suggestive', 'erotica', 'pornographic'],
+            value: safetyFilter,
+            onChanged: (value) => setState(() => safetyFilter = value!),
+          ),
+          _buildComboBox(
+            label: 'Tình trạng',
+            items: ['Tất cả', 'ongoing', 'completed', 'hiatus', 'cancelled'],
+            value: statusFilter,
+            onChanged: (value) => setState(() => statusFilter = value!),
+          ),
+          _buildComboBox(
+            label: 'Dành cho',
+            items: ['Tất cả', 'shounen', 'shoujo', 'seinen', 'josei'],
+            value: demographicFilter,
+            onChanged: (value) => setState(() => demographicFilter = value!),
+          ),
+          _buildComboBox(
+            label: 'Sắp xếp theo',
+            items: ['Mới cập nhật', 'Truyện mới', 'Theo dõi nhiều nhất'],
+            value: sortBy,
+            onChanged: (value) => setState(() => sortBy = value!),
+          ),
+          SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton(
+              onPressed: _performSearch,
+              child: isLoading
+                  ? CircularProgressIndicator(color: Colors.white)
+                  : Text('Tìm kiếm'),
             ),
           ),
-          if (filteredMangas.isNotEmpty)
-            Expanded(
-              child: MangaGridView(initialMangas: filteredMangas),
-            ),
         ],
       ),
     );
