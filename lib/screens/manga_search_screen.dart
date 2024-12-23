@@ -5,8 +5,13 @@ import '../services/manga_dex_service.dart';
 class TagInfo {
   final String id;
   final String name;
+  final String group;
 
-  TagInfo({required this.id, required this.name});
+  TagInfo({
+    required this.id,
+    required this.name,
+    required this.group
+  });
 }
 class AdvancedSearchScreen extends StatefulWidget {
   @override
@@ -43,11 +48,16 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
       setState(() {
         availableTags = tags.map((tag) => TagInfo(
             id: tag['id'],
-            name: tag['attributes']['name']['en'] ?? 'Unknown'
+            name: tag['attributes']['name']['en'] ?? 'Unknown',
+            group: tag['attributes']['group'] ?? 'other'
         )).toList();
 
-        // Sắp xếp tags theo tên
-        availableTags.sort((a, b) => a.name.compareTo(b.name));
+        // Sắp xếp tags theo group và tên
+        availableTags.sort((a, b) {
+          int groupCompare = a.group.compareTo(b.group);
+          if (groupCompare != 0) return groupCompare;
+          return a.name.compareTo(b.name);
+        });
       });
     } catch (e) {
       print('Lỗi khi tải tags: $e');
@@ -147,47 +157,70 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   }
 
   List<Widget> _buildTagsList() {
-    return availableTags.map((tag) {
-      bool isIncluded = selectedTagIds.contains(tag.id);
-      bool isExcluded = excludedTagIds.contains(tag.id);
-      return ListTile(
-        title: Text(tag.name),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                isIncluded ? Icons.check_box : Icons.check_box_outline_blank,
-                color: Colors.green,
+    Map<String, List<TagInfo>> groupedTags = {};
+    for (var tag in availableTags) {
+      if (!groupedTags.containsKey(tag.group)) {
+        groupedTags[tag.group] = [];
+      }
+      groupedTags[tag.group]!.add(tag);
+    }
+
+    return groupedTags.entries.map((entry) {
+      String groupName = entry.key.toUpperCase();
+      List<TagInfo> tags = entry.value;
+
+      return Padding(
+        padding: EdgeInsets.only(left: 16.0),  // Thêm padding bên trái
+        child: ExpansionTile(
+          title: Text(groupName),
+          children: tags.map((tag) {
+            bool isIncluded = selectedTagIds.contains(tag.id);
+            bool isExcluded = excludedTagIds.contains(tag.id);
+
+            return Padding(
+              padding: EdgeInsets.only(left: 16.0),  // Thêm padding cho các tag con
+              child: ListTile(
+                title: Text(tag.name),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        isIncluded ? Icons.check_box : Icons.check_box_outline_blank,
+                        color: Colors.green,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          if (isExcluded) excludedTagIds.remove(tag.id);
+                          if (isIncluded) {
+                            selectedTagIds.remove(tag.id);
+                          } else {
+                            selectedTagIds.add(tag.id);
+                          }
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        isExcluded ? Icons.check_box : Icons.check_box_outline_blank,
+                        color: Colors.red,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          if (isIncluded) selectedTagIds.remove(tag.id);
+                          if (isExcluded) {
+                            excludedTagIds.remove(tag.id);
+                          } else {
+                            excludedTagIds.add(tag.id);
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
-              onPressed: () {
-                setState(() {
-                  if (isExcluded) excludedTagIds.remove(tag.id);
-                  if (isIncluded) {
-                    selectedTagIds.remove(tag.id);
-                  } else {
-                    selectedTagIds.add(tag.id);
-                  }
-                });
-              },
-            ),
-            IconButton(
-              icon: Icon(
-                isExcluded ? Icons.check_box : Icons.check_box_outline_blank,
-                color: Colors.red,
-              ),
-              onPressed: () {
-                setState(() {
-                  if (isIncluded) selectedTagIds.remove(tag.id);
-                  if (isExcluded) {
-                    excludedTagIds.remove(tag.id);
-                  } else {
-                    excludedTagIds.add(tag.id);
-                  }
-                });
-              },
-            ),
-          ],
+            );
+          }).toList(),
         ),
       );
     }).toList();
