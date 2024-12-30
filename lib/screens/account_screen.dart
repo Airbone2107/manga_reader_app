@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
+import '../local_storage/secure_user_manager.dart';
 import '../services/manga_user_service.dart';
 import '../services/model.dart';
 
@@ -24,9 +25,43 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   void initState() {
     super.initState();
+    _loadStoredUser();
     _initializeGoogleSignIn();
   }
-
+  Future<void> _loadStoredUser() async {
+    try {
+      final userInfo = await StorageService.getUserInfo();
+      if (userInfo['id'] != null) {
+        setState(() {
+          _user = User(
+            id: userInfo['id']!,
+            googleId: userInfo['googleId']!,
+            email: userInfo['email']!,
+            displayName: userInfo['displayName']!,
+            photoURL: userInfo['photoURL'],
+            following: [],
+            readingProgress: [],
+            createdAt: DateTime.parse(userInfo['createdAt'] ?? DateTime.now().toIso8601String()),
+          );
+        });
+        await _refreshUserData();
+      }
+    } catch (e) {
+      print('Lỗi khi đọc dữ liệu đã lưu: $e');
+    }
+  }
+  Future<void> _refreshUserData() async {
+    if (_user != null) {
+      try {
+        final updatedUser = await _userService.getUserData(_user!.id);
+        setState(() {
+          _user = updatedUser;
+        });
+      } catch (e) {
+        print('Lỗi khi refresh dữ liệu: $e');
+      }
+    }
+  }
   @override
   void dispose() {
     _userService.dispose();
@@ -57,6 +92,17 @@ class _AccountScreenState extends State<AccountScreen> {
         _isLoading = true;
       });
       _user = await _userService.signInWithGoogle(googleUser);
+
+      // Lưu thông tin cơ bản
+      await StorageService.saveUserInfo(
+        id: _user!.id,
+        googleId: _user!.googleId,
+        email: _user!.email,
+        displayName: _user!.displayName,
+        photoURL: _user!.photoURL,
+        createdAt: _user!.createdAt, // Thêm createdAt
+      );
+
       setState(() {
         _isLoading = false;
       });
@@ -96,6 +142,7 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _handleSignOut() async {
     try {
       await _googleSignIn.disconnect();
+      await StorageService.clearAll(); // Xóa dữ liệu đã lưu
       setState(() {
         _currentUser = null;
         _user = null;
@@ -216,8 +263,21 @@ class _AccountScreenState extends State<AccountScreen> {
         UserAccountsDrawerHeader(
           accountName: Text(_user!.displayName),
           accountEmail: Text(_user!.email),
-          currentAccountPicture: CircleAvatar(
-            backgroundImage: NetworkImage(_user!.photoURL ?? ''),
+          currentAccountPicture: _user!.photoURL != null && _user!.photoURL!.isNotEmpty
+              ? CircleAvatar(
+            backgroundImage: NetworkImage(_user!.photoURL!),
+          )
+              : CircleAvatar(
+            backgroundColor: Colors.blue,
+            child: Text(
+              _user!.displayName.isNotEmpty
+                  ? _user!.displayName[0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+              ),
+            ),
           ),
         ),
         Expanded(

@@ -41,7 +41,6 @@ class User {
     }
   }
 }
-
 class ReadingProgress {
   final String mangaId;
   final int lastChapter;

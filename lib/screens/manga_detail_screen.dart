@@ -153,6 +153,7 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) => ChapterReaderScreen(
+                                              mangaId: widget.mangaId,
                                               chapterId: chapter['id'],
                                               chapterName: displayTitle,
                                               chapterList: languageChapters, // Pass chapters by language

@@ -31,6 +31,23 @@ class UserService {
       throw Exception('Lỗi khi bỏ theo dõi: $e');
     }
   }
+  Future<User> getUserData(String userId) async {
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/api/users/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(response.body);
+        return User.fromJson(userData);
+      } else {
+        throw HttpException('Không thể lấy thông tin user');
+      }
+    } catch (e) {
+      throw Exception('Lỗi khi lấy thông tin user: $e');
+    }
+  }
   // Đăng nhập với Google
   Future<User> signInWithGoogle(GoogleSignInAccount googleUser) async {
     try {

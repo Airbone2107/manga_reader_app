@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import '../local_storage/secure_user_manager.dart';
 import '../services/image_loader.dart';
 import '../services/manga_dex_service.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import '../services/manga_user_service.dart';
 
 class ChapterReaderScreen extends StatefulWidget {
+  final String mangaId;
   final String chapterId;
   final String chapterName;
   final List<dynamic> chapterList; // Thêm danh sách chương
 
-  ChapterReaderScreen({required this.chapterId, required this.chapterName, required this.chapterList});
+  ChapterReaderScreen({required this.mangaId, required this.chapterId, required this.chapterName, required this.chapterList});
 
   @override
   _ChapterReaderScreenState createState() => _ChapterReaderScreenState();
@@ -24,10 +27,13 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   double scrollThreshold = 0.0;
   double lastOffset = 0.0;
   late int currentIndex; // Chỉ số chương hiện tại
+  late UserService userService;
 
   @override
   void initState() {
     super.initState();
+    //User Service để theo dõi
+    userService = UserService(baseUrl: 'https://manga-reader-app-backend.onrender.com'); // Khởi tạo UserService
     // Tìm vị trí của chương hiện tại trong danh sách
     currentIndex = widget.chapterList.indexWhere((chapter) => chapter['id'] == widget.chapterId);
     chapterPages = MangaDexService().fetchChapterPages(widget.chapterId);
@@ -88,6 +94,35 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
         : 'Chương $chapterNumber: $chapterTitle';
   }
 
+  // Xử lý nhấn nút follow
+  void _followManga(String mangaId) async {
+    try {
+      // Lấy thông tin người dùng từ StorageService
+      final userInfo = await StorageService.getUserInfo();
+      final userId = userInfo['id'];
+
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vui lòng đăng nhập để theo dõi truyện.')),
+        );
+        return;
+      }
+      // Thêm manga vào danh sách theo dõi
+      await userService.addToFollowing(userId, mangaId);
+
+      // Hiển thị thông báo thành công
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã thêm truyện vào danh sách theo dõi.')),
+      );
+    } catch (e) {
+      // Hiển thị thông báo lỗi
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi thêm truyện: $e')),
+      );
+    }
+  }
+
+
   void goToNextChapter() {
     if (currentIndex > 0) {
       var prevChapter = widget.chapterList[currentIndex - 1];
@@ -95,6 +130,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => ChapterReaderScreen(
+            mangaId: widget.mangaId,
             chapterId: prevChapter['id'],
             chapterName: getChapterDisplayName(prevChapter),
             chapterList: widget.chapterList,
@@ -111,6 +147,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => ChapterReaderScreen(
+            mangaId: widget.mangaId,
             chapterId: nextChapter['id'],
             chapterName: getChapterDisplayName(nextChapter),
             chapterList: widget.chapterList,
@@ -223,7 +260,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                       IconButton(
                         icon: Icon(Icons.bookmark, color: Colors.white),
                         onPressed: () {
-                          // Handle follow story action
+                          _followManga(widget.mangaId); // Gọi hàm follow manga khi nhấn
                         },
                       ),
                       IconButton(
