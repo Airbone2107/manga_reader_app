@@ -1,3 +1,4 @@
+import 'account_screen.dart';
 import 'manga_search_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/manga_grid_view.dart';
@@ -26,7 +27,7 @@ class _MangaListScreenState extends State<MangaListScreen> with AutomaticKeepAli
       case 1:
         return AdvancedSearchScreen();
       case 2:
-        return Center(child: Text('Chức năng Tài Khoản đang được phát triển'));
+        return AccountScreen();
       default:
         return MangaGridView();
     }
@@ -36,7 +37,6 @@ class _MangaListScreenState extends State<MangaListScreen> with AutomaticKeepAli
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      appBar: AppBar(title: Text('Danh Sách Truyện Tranh')),
       body: _buildBody(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
