@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import 'model.dart';
+
 class MangaDexService {
   final String baseUrl = 'https://api.mangadex.org';
 
@@ -12,46 +14,19 @@ class MangaDexService {
     // Bạn có thể thêm các thông tin chi tiết khác nếu cần.
   }
 
-  // Lấy danh sách manga
+// Hàm fetchManga
   Future<List<dynamic>> fetchManga({
-    // Các tham số cơ bản cho pagination (Phân Trang)
     int? limit,
     int? offset,
-    // Các tham số để tìm kiếm
-    String? title,
-    List<String>? includedTags,
-    List<String>? excludedTags,
-    String? safety,
-    String? status,
-    String? demographic,
-    String? sortBy,
+    SortManga? sortManga,
   }) async {
-    // Xây dựng parameters cho request
     Map<String, dynamic> params = {};
 
-    // Thêm các tham số pagination
     if (limit != null) params['limit'] = limit.toString();
     if (offset != null) params['offset'] = offset.toString();
 
-    // Thêm các tham số tìm kiếm nâng cao nếu có
-    if (title != null && title.isNotEmpty) params['title'] = title;
-    if (includedTags != null && includedTags.isNotEmpty) {
-      params['includedTags[]'] = includedTags;
-    }
-    if (excludedTags != null && excludedTags.isNotEmpty) {
-      params['excludedTags[]'] = excludedTags;
-    }
-    if (safety != null && safety != 'Tất cả') {
-      params['contentRating[]'] = [safety.toLowerCase()];
-    }
-    if (status != null && status != 'Tất cả') {
-      params['status[]'] = [status.toLowerCase()];
-    }
-    if (demographic != null && demographic != 'Tất cả') {
-      params['publicationDemographic[]'] = [demographic.toLowerCase()];
-    }
-    if (sortBy != null) {
-      params['order[updatedAt]'] = sortBy == 'Mới cập nhật' ? 'desc' : 'asc';
+    if (sortManga != null) {
+      params.addAll(sortManga.toParams());
     }
 
     final uri = Uri.parse('$baseUrl/manga').replace(queryParameters: params);
@@ -68,6 +43,7 @@ class MangaDexService {
     }
   }
 
+
   // Lấy chi tiết một manga
   Future<Map<String, dynamic>> fetchMangaDetails(String mangaId) async {
     final response = await http.get(Uri.parse('$baseUrl/manga/$mangaId'));
@@ -82,8 +58,7 @@ class MangaDexService {
   }
 
   // Lấy danh sách các chương của manga với Pagination
-  Future<List<dynamic>> fetchChapters(
-      String mangaId, String languages, {String order = 'desc'}) async {
+  Future<List<dynamic>> fetchChapters(String mangaId, String languages, {String order = 'desc'}) async {
     // Chia danh sách ngôn ngữ và kiểm tra hợp lệ
     List<String> languageList = languages.split(',').map((lang) => lang.trim()).toList();
     languageList.removeWhere((lang) => !RegExp(r'^[a-z]{2}(-[a-z]{2})?$').hasMatch(lang));
@@ -97,8 +72,7 @@ class MangaDexService {
     int limit = 100;
 
     while (true) {
-      final response = await http.get(Uri.parse(
-          '$baseUrl/manga/$mangaId/feed?limit=$limit&offset=$offset&translatedLanguage[]=${languageList.join('&translatedLanguage[]=')}&order[chapter]=$order'));
+      final response = await http.get(Uri.parse('$baseUrl/manga/$mangaId/feed?limit=$limit&offset=$offset&translatedLanguage[]=${languageList.join('&translatedLanguage[]=')}&order[chapter]=$order'));
 
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
@@ -111,24 +85,19 @@ class MangaDexService {
         allChapters.addAll(chapters);
         offset += limit;
       } else if (response.statusCode == 503) {
-        throw Exception(
-            'Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
+        throw Exception('Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
       } else {
         logError('fetchChapters', response);
-        throw Exception(
-            'Lỗi trong hàm fetchChapters:\nMã trạng thái: ${response.statusCode}\nNội dung phản hồi: ${response.body}');
+        throw Exception('Lỗi trong hàm fetchChapters:\nMã trạng thái: ${response.statusCode}\nNội dung phản hồi: ${response.body}');
       }
     }
 
     return allChapters;
   }
 
-
-
   // Lấy ảnh bìa của manga
   Future<String> fetchCoverUrl(String mangaId) async {
-    final response =
-        await http.get(Uri.parse('$baseUrl/cover?manga[]=$mangaId'));
+    final response = await http.get(Uri.parse('$baseUrl/cover?manga[]=$mangaId'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -147,8 +116,7 @@ class MangaDexService {
 
   // Lấy các trang của chương
   Future<List<String>> fetchChapterPages(String chapterId) async {
-    final response =
-        await http.get(Uri.parse('$baseUrl/at-home/server/$chapterId'));
+    final response = await http.get(Uri.parse('$baseUrl/at-home/server/$chapterId'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -168,8 +136,7 @@ class MangaDexService {
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      return data['data'] ??
-          []; // Trả về toàn bộ dữ liệu tag, bao gồm id và attributes
+      return data['data'] ?? []; // Trả về toàn bộ dữ liệu tag, bao gồm id và attributes
     } else {
       logError('fetchTags', response);
       throw Exception('Lỗi khi tải danh sách tags');

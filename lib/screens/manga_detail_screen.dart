@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/manga_dex_service.dart';
-import 'chapter_reader_screen.dart';
+import '../services/model.dart';
+import 'read_a_chapter/chapter_reader_screen.dart';
 
 class MangaDetailScreen extends StatefulWidget {
   final String mangaId;
@@ -148,19 +149,19 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
 
                                     return ListTile(
                                       title: Text(displayTitle),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ChapterReaderScreen(
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ChapterReaderScreen(
+                                            chapter: Chapter(
                                               mangaId: widget.mangaId,
                                               chapterId: chapter['id'],
                                               chapterName: displayTitle,
-                                              chapterList: languageChapters, // Pass chapters by language
+                                              chapterList: languageChapters,
                                             ),
                                           ),
-                                        );
-                                      },
+                                        ),
+                                      ),
                                     );
                                   }).toList(),
                                 );

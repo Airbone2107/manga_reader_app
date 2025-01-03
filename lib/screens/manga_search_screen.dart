@@ -1,6 +1,7 @@
 import 'manga_list_search.dart';
 import 'package:flutter/material.dart';
 import '../services/manga_dex_service.dart';
+import '../services/model.dart';
 
 class TagInfo {
   final String id;
@@ -10,13 +11,15 @@ class TagInfo {
   TagInfo({
     required this.id,
     required this.name,
-    required this.group
+    required this.group,
   });
 }
+
 class AdvancedSearchScreen extends StatefulWidget {
   @override
   _AdvancedSearchScreenState createState() => _AdvancedSearchScreenState();
 }
+
 class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   final MangaDexService _service = MangaDexService();
   final TextEditingController _searchController = TextEditingController();
@@ -31,10 +34,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
 
   // Danh sách các tag
   bool isLoading = false;
-  Set<String> selectedTagIds = {};
-  Set<String> excludedTagIds = {};
   List<TagInfo> availableTags = [];
-  List<dynamic> filteredMangas = [];
 
   @override
   void initState() {
@@ -47,16 +47,15 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
       var tags = await _service.fetchTags();
       setState(() {
         availableTags = tags.map((tag) => TagInfo(
-            id: tag['id'],
-            name: tag['attributes']['name']['en'] ?? 'Unknown',
-            group: tag['attributes']['group'] ?? 'other'
+          id: tag['id'],
+          name: tag['attributes']['name']['en'] ?? 'Unknown',
+          group: tag['attributes']['group'] ?? 'other',
         )).toList();
 
         // Sắp xếp tags theo group và tên
         availableTags.sort((a, b) {
           int groupCompare = a.group.compareTo(b.group);
-          if (groupCompare != 0) return groupCompare;
-          return a.name.compareTo(b.name);
+          return groupCompare != 0 ? groupCompare : a.name.compareTo(b.name);
         });
       });
     } catch (e) {
@@ -68,31 +67,22 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   }
 
   Future<void> _performSearch() async {
-    setState(() => isLoading = true);
+    SortManga sortManga = SortManga(
+      title: _searchController.text.trim(),
+      includedTags: selectedTags.toList(),
+      excludedTags: excludedTags.toList(),
+      safety: safetyFilter,
+      status: statusFilter,
+      demographic: demographicFilter,
+      sortBy: sortBy,
+    );
 
-    try {
-      // Chuyển đến MangaGridView với các tham số filter
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MangaListSearch(
-            title: _searchController.text.trim(),
-            includedTags: selectedTagIds.toList(),
-            excludedTags: excludedTagIds.toList(),
-            safety: safetyFilter,
-            status: statusFilter,
-            demographic: demographicFilter,
-            sortBy: sortBy,
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Có lỗi xảy ra. Vui lòng thử lại!')),
-      );
-    } finally {
-      setState(() => isLoading = false);
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MangaListSearch(sortManga: sortManga),
+      ),
+    );
   }
 
   @override
@@ -116,7 +106,6 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
             title: Text('Tags'),
             children: _buildTagsList(),
           ),
-          SizedBox(height: 16),
           _buildComboBox(
             label: 'Độ an toàn',
             items: ['Tất cả', 'safe', 'suggestive', 'erotica', 'pornographic'],
@@ -141,7 +130,6 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
             value: sortBy,
             onChanged: (value) => setState(() => sortBy = value!),
           ),
-          SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ElevatedButton(
@@ -159,69 +147,52 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   List<Widget> _buildTagsList() {
     Map<String, List<TagInfo>> groupedTags = {};
     for (var tag in availableTags) {
-      if (!groupedTags.containsKey(tag.group)) {
-        groupedTags[tag.group] = [];
-      }
-      groupedTags[tag.group]!.add(tag);
+      groupedTags.putIfAbsent(tag.group, () => []).add(tag);
     }
 
     return groupedTags.entries.map((entry) {
-      String groupName = entry.key.toUpperCase();
-      List<TagInfo> tags = entry.value;
-
-      return Padding(
-        padding: EdgeInsets.only(left: 16.0),  // Thêm padding bên trái
-        child: ExpansionTile(
-          title: Text(groupName),
-          children: tags.map((tag) {
-            bool isIncluded = selectedTagIds.contains(tag.id);
-            bool isExcluded = excludedTagIds.contains(tag.id);
-
-            return Padding(
-              padding: EdgeInsets.only(left: 16.0),  // Thêm padding cho các tag con
-              child: ListTile(
-                title: Text(tag.name),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        isIncluded ? Icons.check_box : Icons.check_box_outline_blank,
-                        color: Colors.green,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          if (isExcluded) excludedTagIds.remove(tag.id);
-                          if (isIncluded) {
-                            selectedTagIds.remove(tag.id);
-                          } else {
-                            selectedTagIds.add(tag.id);
-                          }
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        isExcluded ? Icons.check_box : Icons.check_box_outline_blank,
-                        color: Colors.red,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          if (isIncluded) selectedTagIds.remove(tag.id);
-                          if (isExcluded) {
-                            excludedTagIds.remove(tag.id);
-                          } else {
-                            excludedTagIds.add(tag.id);
-                          }
-                        });
-                      },
-                    ),
-                  ],
+      return ExpansionTile(
+        title: Text(entry.key.toUpperCase()),
+        children: entry.value.map((tag) {
+          bool isIncluded = selectedTags.contains(tag.id);
+          bool isExcluded = excludedTags.contains(tag.id);
+          return ListTile(
+            title: Text(tag.name),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    isIncluded ? Icons.check_box : Icons.check_box_outline_blank,
+                    color: Colors.green,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      if (isExcluded) excludedTags.remove(tag.id);
+                      isIncluded
+                          ? selectedTags.remove(tag.id)
+                          : selectedTags.add(tag.id);
+                    });
+                  },
                 ),
-              ),
-            );
-          }).toList(),
-        ),
+                IconButton(
+                  icon: Icon(
+                    isExcluded ? Icons.check_box : Icons.check_box_outline_blank,
+                    color: Colors.red,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      if (isIncluded) selectedTags.remove(tag.id);
+                      isExcluded
+                          ? excludedTags.remove(tag.id)
+                          : excludedTags.add(tag.id);
+                    });
+                  },
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       );
     }).toList();
   }
@@ -233,23 +204,15 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
     required ValueChanged<String?> onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 16.0, vertical: 8.0), // Tăng padding
-      child: Container(
-        margin: EdgeInsets.only(bottom: 16.0), // Thêm margin bottom
-        child: DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: label,
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(
-                horizontal: 12, vertical: 16), // Thêm padding bên trong
-          ),
-          items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-              .toList(),
-          value: value,
-          onChanged: onChanged,
+      padding: const EdgeInsets.all(8.0),
+      child: DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
         ),
+        items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+        value: value,
+        onChanged: onChanged,
       ),
     );
   }

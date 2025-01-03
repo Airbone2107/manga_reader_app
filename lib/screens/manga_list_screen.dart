@@ -1,4 +1,5 @@
-import 'account_screen.dart';
+import '../services/model.dart';
+import 'account_manager/account_screen.dart';
 import 'manga_search_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/manga_grid_view.dart';
@@ -23,7 +24,11 @@ class _MangaListScreenState extends State<MangaListScreen> with AutomaticKeepAli
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
-        return MangaGridView();
+        return MangaGridView(
+          sortManga: SortManga(
+            languages: ['en', 'vn'],
+          ),
+        );
       case 1:
         return AdvancedSearchScreen();
       case 2:
