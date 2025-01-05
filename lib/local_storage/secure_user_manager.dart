@@ -10,6 +10,7 @@ class StorageService {
   static const String _displayNameKey = 'display_name';
   static const String _photoUrlKey = 'photo_url';
   static const String _createdAtKey = 'created_at';
+  static const String _tokenKey = 'auth_token';
 
   // Lưu thông tin user
   static Future<void> saveUserInfo({
@@ -43,7 +44,7 @@ class StorageService {
     };
   }
 
-  // Xóa tất cả thông tin
+  // Cập nhật method clearAll
   static Future<void> clearAll() async {
     await _storage.deleteAll();
   }
@@ -52,5 +53,17 @@ class StorageService {
   static Future<bool> isLoggedIn() async {
     final userId = await _storage.read(key: _userIdKey);
     return userId != null;
+  }
+
+  static Future<void> saveToken(String token) async {
+    await _storage.write(key: _tokenKey, value: token);
+  }
+
+  static Future<String?> getToken() async {
+    return await _storage.read(key: _tokenKey);
+  }
+
+  static Future<void> removeToken() async {
+    await _storage.delete(key: _tokenKey);
   }
 }

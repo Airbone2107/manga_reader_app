@@ -1,19 +1,24 @@
-import '../services/model.dart';
-import 'account_manager/account_screen.dart';
-import 'manga_search_screen.dart';
 import 'package:flutter/material.dart';
-import '../services/manga_grid_view.dart';
+import '../../services/model.dart';
+import '../../services/show_manga_list/manga_grid_view.dart';
 
 class MangaListScreen extends StatefulWidget {
   @override
   _MangaListScreenState createState() => _MangaListScreenState();
 }
 
-class _MangaListScreenState extends State<MangaListScreen> with AutomaticKeepAliveClientMixin {
+class _MangaListScreenState extends State<MangaListScreen> {
   int _selectedIndex = 0;
 
-  @override
-  bool get wantKeepAlive => true;
+  final List<Widget> _screens = [
+    MangaGridView(
+      sortManga: SortManga(
+        languages: ['en', 'vn'],
+      ),
+    ),
+    Center(child: Text('Search Screen (Placeholder)')), // Placeholder for Search
+    Center(child: Text('Account Screen (Placeholder)')), // Placeholder for Account
+  ];
 
   void _onTabTapped(int index) {
     setState(() {
@@ -21,32 +26,17 @@ class _MangaListScreenState extends State<MangaListScreen> with AutomaticKeepAli
     });
   }
 
-  Widget _buildBody() {
-    switch (_selectedIndex) {
-      case 0:
-        return MangaGridView(
-          sortManga: SortManga(
-            languages: ['en', 'vn'],
-          ),
-        );
-      case 1:
-        return AdvancedSearchScreen();
-      case 2:
-        return AccountScreen();
-      default:
-        return MangaGridView();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return Scaffold(
-      body: _buildBody(),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onTabTapped,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Trang Chủ',

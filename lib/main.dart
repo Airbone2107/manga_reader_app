@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/manga_list_screen.dart';
+import 'screens/main/manga_main_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MangaListScreen(),
+      home: MangaMainScreen(),
     );
   }
 }

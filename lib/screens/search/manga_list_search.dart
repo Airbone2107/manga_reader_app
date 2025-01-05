@@ -1,6 +1,6 @@
-import '../services/model.dart';
+import '../../services/model.dart';
 import 'package:flutter/material.dart';
-import '../services/manga_grid_view.dart';
+import '../../services/show_manga_list/manga_grid_view.dart';
 
 class MangaListSearch extends StatelessWidget {
   final SortManga sortManga;

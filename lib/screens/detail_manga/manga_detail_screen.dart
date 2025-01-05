@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/manga_dex_service.dart';
-import '../services/model.dart';
-import 'read_a_chapter/chapter_reader_screen.dart';
+import '../../services/manga_dex_service.dart';
+import '../../services/model.dart';
+import '../chapter/chapter_reader_screen.dart';
 
 class MangaDetailScreen extends StatefulWidget {
   final String mangaId;

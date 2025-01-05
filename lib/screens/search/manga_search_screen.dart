@@ -1,7 +1,7 @@
 import 'manga_list_search.dart';
 import 'package:flutter/material.dart';
-import '../services/manga_dex_service.dart';
-import '../services/model.dart';
+import '../../services/manga_dex_service.dart';
+import '../../services/model.dart';
 
 class TagInfo {
   final String id;

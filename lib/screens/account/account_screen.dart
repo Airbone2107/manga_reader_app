@@ -16,7 +16,14 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   void initState() {
     super.initState();
-    logic.init(context, () => setState(() {}));
+    // Sửa lại cách gọi init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      logic.init(context, () {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    });
   }
 
   @override
