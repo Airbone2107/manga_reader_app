@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../local_storage/secure_user_manager.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'model.dart';
+import '../local_storage/secure_user_manager.dart';
 
 class UserService {
   final String baseUrl;
@@ -27,7 +28,6 @@ class UserService {
     client.close();
   }
 
-  // Headers với token
   Map<String, String> get _headers {
     if (_token == null) {
       throw HttpException('Không tìm thấy token');
@@ -38,7 +38,6 @@ class UserService {
     };
   }
 
-  // Thêm method kiểm tra token
   Future<void> _ensureValidToken() async {
     if (_token == null) {
       _token = await StorageService.getToken();
@@ -48,17 +47,14 @@ class UserService {
     }
   }
 
-  // Thêm method kiểm tra đăng nhập
   Future<bool> isLoggedIn() async {
     return await StorageService.isLoggedIn();
   }
 
-  // Thêm method này
   Future<void> refreshToken() async {
     _token = await StorageService.getToken();
   }
 
-  // Thêm method này để xử lý response
   Future<dynamic> _handleResponse(Future<http.Response> Function() request) async {
     try {
       final response = await request();
@@ -81,12 +77,9 @@ class UserService {
       print('Authenticating with Google...');
 
       final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
-
       print('Access Token available: ${accessToken != null}');
-      print('ID Token available: ${idToken != null}');
 
-      // Gửi cả access token và id token
+      // Chỉ gửi access token
       final response = await client.post(
         Uri.parse('$baseUrl/api/users/auth/google'),
         headers: {'Content-Type': 'application/json'},
@@ -95,7 +88,6 @@ class UserService {
           'displayName': googleUser.displayName,
           'photoURL': googleUser.photoUrl,
           'accessToken': accessToken,
-          'idToken': idToken,
         }),
       );
 
@@ -132,7 +124,6 @@ class UserService {
       await _ensureValidToken(); // Kiểm tra token trước khi gọi API
 
       final response = await client.post(
-        // Đổi từ DELETE sang POST
         Uri.parse('$baseUrl/api/users/$userId/unfollow').replace(queryParameters: {'mangaId': mangaId}),
         headers: _headers,
       );
