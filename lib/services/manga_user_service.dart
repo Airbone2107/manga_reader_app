@@ -7,10 +7,8 @@ import 'model.dart';
 import '../local_storage/secure_user_manager.dart';
 
 class UserService {
-  // Các thuộc tính của class
   final String baseUrl;
   final http.Client client;
-  String? _token;
 
   // Constructor
   UserService({
@@ -18,58 +16,27 @@ class UserService {
     http.Client? client,
   }) : client = client ?? http.Client();
 
-  // SECTION: Token Management
-  //--------------------------------------------
-
-  /// Khởi tạo token từ secure storage
-  Future<void> initToken() async {
-    _token = await StorageService.getToken();
-  }
-
-  /// Getter cho token
-  String? get token => _token;
-
-  /// Kiểm tra tính hợp lệ của token
-  Future<bool> isTokenValid() async {
-    if (_token == null) return false;
-    try {
-      final response = await client.get(
-        Uri.parse('$baseUrl/api/users/verify-token'),
-        headers: _headers,
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Làm mới token từ storage
-  Future<void> refreshToken() async {
-    _token = await StorageService.getToken();
-  }
-
   // SECTION: Authentication
-  //--------------------------------------------
 
   /// Đăng nhập bằng Google
-  Future<User> signInWithGoogle(GoogleSignInAccount googleUser) async {
+  Future<void> signInWithGoogle(GoogleSignInAccount googleUser) async {
     try {
+      // Lấy thông tin xác thực từ Google
       final googleAuth = await googleUser.authentication;
       print('Authenticating with Google...');
 
-      final accessToken = googleAuth.accessToken;
-      print('Access Token available: ${accessToken != null}');
+      final accessToken = googleAuth.accessToken; // Dùng accessToken thay vì idToken
+      if (accessToken == null) {
+        throw Exception('Không lấy được Access Token từ Google');
+      }
 
-      // Chỉ gửi access token
+      print('Access Token available: $accessToken');
+
+      // Gửi Access Token cho backend để nhận JWT token
       final response = await client.post(
         Uri.parse('$baseUrl/api/users/auth/google'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': googleUser.email,
-          'displayName': googleUser.displayName,
-          'photoURL': googleUser.photoUrl,
-          'accessToken': accessToken,
-        }),
+        body: jsonEncode({'accessToken': accessToken}),
       );
 
       print('Response status: ${response.statusCode}');
@@ -77,20 +44,12 @@ class UserService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _token = data['token'];
-        await StorageService.saveToken(_token!);
+        final backendToken = data['token'];
 
-        final user = User.fromJson(data['user']);
-        await StorageService.saveUserInfo(
-          id: user.id,
-          googleId: user.googleId,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          createdAt: user.createdAt,
-        );
+        // Lưu token nhận được vào Secure Storage
+        await StorageService.saveToken(backendToken);
 
-        return user;
+        print('Đăng nhập thành công. Token từ backend: $backendToken');
       } else {
         throw HttpException(
             'Đăng nhập thất bại: ${response.statusCode} - ${response.body}');
@@ -104,16 +63,16 @@ class UserService {
   /// Đăng xuất người dùng
   Future<void> logout() async {
     try {
-      if (_token == null) return;
+      final token = await StorageService.getToken();
+      if (token == null) return;
 
       final response = await client.post(
         Uri.parse('$baseUrl/api/users/logout'),
-        headers: _headers,
+        headers: _buildHeaders(token),
       );
 
       if (response.statusCode == 200) {
-        _token = null;
-        await StorageService.clearAll();
+        await StorageService.removeToken(); // Xóa token
       } else {
         throw HttpException('Đăng xuất thất bại');
       }
@@ -123,40 +82,38 @@ class UserService {
   }
 
   // SECTION: User Data Management
-  //--------------------------------------------
 
   /// Lấy thông tin người dùng
-  Future<User> getUserData(String userId) async {
-    try {
-      final response = await _handleResponse(() => client.get(
-        Uri.parse('$baseUrl/api/users/$userId'),
-        headers: _headers,
-      ));
+  Future<User> getUserData() async {
+    final token = await _getTokenOrThrow();
+    print("getUserData đang xử lý, token hiện tại là: $token");
 
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        return User.fromJson(userData);
-      } else {
-        throw HttpException('Không thể lấy thông tin user');
-      }
-    } catch (e) {
-      throw Exception('Lỗi khi lấy thông tin user: $e');
+    final response = await client.get(
+      Uri.parse('$baseUrl/api/users'),
+      headers: _buildHeaders(token),
+    );
+    print("getUserData đã xử lý xong");
+    if (response.statusCode == 200) {
+      final userData = jsonDecode(response.body);
+      return User.fromJson(userData);
+    } else if (response.statusCode == 403) {
+      throw HttpException('403'); // Token hết hạn hoặc không hợp lệ
+    } else {
+      throw HttpException('Không thể lấy thông tin user. Mã lỗi: ${response.statusCode}');
     }
   }
 
   // SECTION: Manga Interaction
-  //--------------------------------------------
 
   /// Thêm manga vào danh sách theo dõi
-  Future<void> addToFollowing(String userId, String mangaId) async {
-    try {
-      await _ensureValidToken(); // Kiểm tra token trước khi gọi API
+  Future<void> addToFollowing(String mangaId) async {
+    final token = await _getTokenOrThrow();
 
+    try {
       final response = await client.post(
-        // Đổi từ GET sang POST
-        Uri.parse('$baseUrl/api/users/$userId/follow')
-            .replace(queryParameters: {'mangaId': mangaId}),
-        headers: _headers,
+        Uri.parse('$baseUrl/api/users/follow'),
+        headers: _buildHeaders(token),
+        body: jsonEncode({'mangaId': mangaId}), // Gửi mangaId trong body
       );
 
       if (response.statusCode != 200) {
@@ -171,14 +128,14 @@ class UserService {
   }
 
   /// Xóa manga khỏi danh sách theo dõi
-  Future<void> removeFromFollowing(String userId, String mangaId) async {
-    try {
-      await _ensureValidToken(); // Kiểm tra token trước khi gọi API
+  Future<void> removeFromFollowing(String mangaId) async {
+    final token = await _getTokenOrThrow();
 
+    try {
       final response = await client.post(
-        Uri.parse('$baseUrl/api/users/$userId/unfollow')
-            .replace(queryParameters: {'mangaId': mangaId}),
-        headers: _headers,
+        Uri.parse('$baseUrl/api/users/unfollow'),
+        headers: _buildHeaders(token),
+        body: jsonEncode({'mangaId': mangaId}), // Gửi mangaId trong body
       );
 
       if (response.statusCode != 200) {
@@ -191,19 +148,48 @@ class UserService {
     }
   }
 
-  /// Cập nhật tiến độ đọc manga
-  Future<void> updateReadingProgress(String userId, String mangaId, int lastChapter) async {
+  /// Kiểm tra xem người dùng có đang theo dõi một manga nào đó không
+  Future<bool> checkIfUserIsFollowing(String mangaId) async {
     try {
-      await _ensureValidToken(); // Kiểm tra token trước khi gọi API
+      final token = await StorageService.getToken(); // Lấy token người dùng từ Storage
+      if (token == null) {
+        return false; // Nếu không có token, mặc định không theo dõi
+      }
 
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/users/user/following/$mangaId'),
+        headers: {
+          'Authorization': 'Bearer $token', // Đưa token vào header yêu cầu
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Nếu API trả về thành công, kiểm tra trạng thái theo dõi
+        return jsonDecode(response.body) == true;
+      } else {
+        // In thêm thông tin phản hồi từ backend để debug
+        print('Error response status: ${response.statusCode}');
+        print('Error response body: ${response.body}');
+        throw Exception('Lỗi khi kiểm tra theo dõi: ${response.body}');
+      }
+    } catch (e) {
+      print("Error checking follow status: $e");
+      return false;
+    }
+  }
+
+  /// Cập nhật tiến độ đọc manga
+  Future<void> updateReadingProgress(String mangaId, int lastChapter) async {
+    final token = await _getTokenOrThrow();
+
+    try {
       final response = await client.post(
-        // Đổi từ GET sang POST
-        Uri.parse('$baseUrl/api/users/$userId/reading-progress')
-            .replace(queryParameters: {
+        Uri.parse('$baseUrl/api/users/reading-progress'),
+        headers: _buildHeaders(token),
+        body: jsonEncode({
           'mangaId': mangaId,
           'lastChapter': lastChapter.toString(),
-        }),
-        headers: _headers,
+        }), // Gửi mangaId và lastChapter trong body
       );
 
       if (response.statusCode != 200) {
@@ -218,50 +204,22 @@ class UserService {
   }
 
   // SECTION: Utility Methods
-  //--------------------------------------------
 
-  /// Headers cho HTTP requests
-  Map<String, String> get _headers {
-    if (_token == null) {
-      throw HttpException('Không tìm thấy token');
-    }
+  /// Xây dựng headers với token
+  Map<String, String> _buildHeaders(String token) {
     return {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $_token',
+      'Authorization': 'Bearer $token',
     };
   }
 
-  /// Đảm bảo token hợp lệ trước khi thực hiện request
-  Future<void> _ensureValidToken() async {
-    if (_token == null) {
-      _token = await StorageService.getToken();
-      if (_token == null) {
-        throw HttpException('Không tìm thấy token');
-      }
+  /// Lấy token hoặc ném lỗi nếu không có token
+  Future<String> _getTokenOrThrow() async {
+    final token = await StorageService.getToken();
+    if (token == null) {
+      throw HttpException('Không tìm thấy token');
     }
-  }
-
-
-  /// Kiểm tra trạng thái đăng nhập
-  Future<bool> isLoggedIn() async {
-    return await StorageService.isLoggedIn();
-  }
-
-  /// Xử lý response từ API
-  Future<dynamic> _handleResponse(Future<http.Response> Function() request) async {
-    try {
-      final response = await request();
-
-      if (response.statusCode == 401) {
-        // Token hết hạn hoặc không hợp lệ
-        await logout();
-        throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      }
-
-      return response;
-    } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
-    }
+    return token;
   }
 
   /// Giải phóng tài nguyên

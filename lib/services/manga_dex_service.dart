@@ -43,10 +43,9 @@ class MangaDexService {
     }
   }
 
-
-  // Lấy chi tiết một manga
+// Lấy chi tiết một manga
   Future<Map<String, dynamic>> fetchMangaDetails(String mangaId) async {
-    final response = await http.get(Uri.parse('$baseUrl/manga/$mangaId'));
+    final response = await http.get(Uri.parse('$baseUrl/manga/$mangaId?includes[]=author'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -58,8 +57,7 @@ class MangaDexService {
   }
 
   // Lấy danh sách các chương của manga với Pagination
-  Future<List<dynamic>> fetchChapters(String mangaId, String languages, {String order = 'desc'}) async {
-    // Chia danh sách ngôn ngữ và kiểm tra hợp lệ
+  Future<List<dynamic>> fetchChapters(String mangaId, String languages, {String order = 'desc', int? maxChapters}) async {
     List<String> languageList = languages.split(',').map((lang) => lang.trim()).toList();
     languageList.removeWhere((lang) => !RegExp(r'^[a-z]{2}(-[a-z]{2})?$').hasMatch(lang));
 
@@ -79,10 +77,15 @@ class MangaDexService {
         var chapters = data['data'];
 
         if (chapters.isEmpty) {
-          break; // Dừng nếu không còn chương nào
+          break;
         }
 
         allChapters.addAll(chapters);
+
+        if (maxChapters != null && allChapters.length >= maxChapters) {
+          return allChapters.take(maxChapters).toList();
+        }
+
         offset += limit;
       } else if (response.statusCode == 503) {
         throw Exception('Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');

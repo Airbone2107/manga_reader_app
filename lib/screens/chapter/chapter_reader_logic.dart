@@ -107,17 +107,17 @@ class ChapterReaderLogic {
   /// Thêm truyện vào danh sách theo dõi của người dùng.
   Future<void> followManga(BuildContext context, String mangaId) async {
     try {
-      final userInfo = await StorageService.getUserInfo();
-      final userId = userInfo['id'];
+      // Lấy token từ StorageService
+      final token = await StorageService.getToken();
 
-      if (userId == null) {
+      if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Vui lòng đăng nhập để theo dõi truyện.')),
         );
         return;
       }
 
-      await userService.addToFollowing(userId, mangaId);
+      await userService.addToFollowing(mangaId); // Truyền token thay vì userId
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đã thêm truyện vào danh sách theo dõi.')),
@@ -126,6 +126,46 @@ class ChapterReaderLogic {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi khi thêm truyện: $e')),
       );
+    }
+  }
+
+  /// Bỏ theo dõi manga
+  Future<void> removeFromFollowing(BuildContext context, String mangaId) async {
+    try {
+      // Lấy token từ StorageService
+      final token = await StorageService.getToken();
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vui lòng đăng nhập để bỏ theo dõi truyện.')),
+        );
+        return;
+      }
+
+      await userService.removeFromFollowing(mangaId); // Gọi API để bỏ theo dõi manga
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã bỏ theo dõi truyện.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi bỏ theo dõi truyện: $e')),
+      );
+    }
+  }
+
+  Future<bool> isFollowingManga(String mangaId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) {
+        return false; // Nếu chưa đăng nhập, mặc định không theo dõi
+      }
+
+      final response = await userService.checkIfUserIsFollowing(mangaId); // API trả về true/false
+      return response; // Trả về true nếu theo dõi, false nếu không
+    } catch (e) {
+      print("Lỗi khi kiểm tra theo dõi: $e");
+      return false;
     }
   }
 }

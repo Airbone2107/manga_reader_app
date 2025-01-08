@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
-import '../model.dart';
-import '../manga_dex_service.dart';
-import '../../screens/detail_manga/manga_detail_screen.dart';
+import 'model.dart';
+import 'manga_dex_service.dart';
+import '../screens/detail_manga/manga_detail_screen.dart';
 
 class MangaGridView extends StatefulWidget {
   final SortManga? sortManga;

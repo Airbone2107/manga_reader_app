@@ -13,7 +13,11 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MangaMainScreen(),
+      initialRoute: '/', // Route mặc định
+      routes: {
+        '/': (context) => MangaMainScreen(), // Trang chủ
+        '/home': (context) => MangaMainScreen(), // Khai báo route cho nút "home"
+      },
     );
   }
 }

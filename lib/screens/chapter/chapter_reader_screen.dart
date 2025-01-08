@@ -17,163 +17,188 @@ class ChapterReaderScreen extends StatefulWidget {
 
 /// State quản lý logic và giao diện cho ChapterReaderScreen.
 class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
-  final CacheManager cacheManager = DefaultCacheManager(); // Quản lý bộ nhớ đệm cho hình ảnh.
-  late Future<List<String>> chapterPages; // Danh sách URL của các trang truyện.
-  List<String?> displayedPages = []; // Danh sách URL các trang đã được hiển thị.
-  late ImageLoader imageLoader; // Hỗ trợ tải hình ảnh với giới hạn.
-  final ScrollController _scrollController = ScrollController(); // Quản lý cuộn nội dung.
-  late ChapterReaderLogic logic; // Logic xử lý chức năng màn hình.
+  final CacheManager cacheManager = DefaultCacheManager();
+  late Future<List<String>> chapterPages;
+  List<String?> displayedPages = [];
+  late ImageLoader imageLoader;
+  final ScrollController _scrollController = ScrollController();
+  late ChapterReaderLogic logic;
+  bool isFollowing = false; // Biến để lưu trạng thái theo dõi
 
-  /// Khởi tạo trạng thái ban đầu.
   @override
   void initState() {
     super.initState();
     logic = ChapterReaderLogic(
-      userService: UserService(baseUrl: 'https://manga-reader-app-backend.onrender.com'), // Dịch vụ người dùng.
+      userService: UserService(baseUrl: 'https://manga-reader-app-backend.onrender.com'),
       setState: setState,
       scrollController: _scrollController,
     );
 
-    chapterPages = logic.fetchChapterPages(widget.chapter.chapterId); // Lấy danh sách trang trong chương hiện tại.
+    chapterPages = logic.fetchChapterPages(widget.chapter.chapterId);
     chapterPages.then((pages) {
       setState(() {
-        displayedPages = List.filled(pages.length, null); // Khởi tạo danh sách trống với số lượng trang.
+        displayedPages = List.filled(pages.length, null);
       });
 
-      imageLoader = ImageLoader(cacheManager: cacheManager); // Khởi tạo ImageLoader.
-      imageLoader.loadImagesWithLimit(pages, displayedPages, 5 /* Giới hạn tải ảnh */, (index) {
-          setState(() {}); // Cập nhật giao diện khi tải xong hình ảnh.
-        },
-      );
-      _scrollController.addListener(() {
-        logic.toggleBarsVisibility(_scrollController.offset); // Hiển thị/Ẩn thanh công cụ khi cuộn.
+      imageLoader = ImageLoader(cacheManager: cacheManager);
+      imageLoader.loadImagesWithLimit(pages, displayedPages, 5, (index) {
+        setState(() {});
       });
+      _scrollController.addListener(() {
+        logic.toggleBarsVisibility(_scrollController.offset);
+      });
+    });
+
+    // Kiểm tra xem manga đã được theo dõi chưa
+    checkFollowingStatus(widget.chapter.mangaId);
+  }
+
+  // Hàm kiểm tra trạng thái theo dõi
+  Future<void> checkFollowingStatus(String mangaId) async {
+    final followingStatus = await logic.isFollowingManga(mangaId);
+    setState(() {
+      isFollowing = followingStatus; // Cập nhật trạng thái theo dõi
     });
   }
 
-  /// Xây dựng giao diện đọc truyện.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: GestureDetector(
         onTap: () {
           setState(() {
-            logic.areBarsVisible = !logic.areBarsVisible; // Ẩn/Hiện thanh công cụ khi chạm vào màn hình.
+            logic.areBarsVisible = !logic.areBarsVisible;
           });
         },
         child: Stack(
           children: [
-            //
             FutureBuilder<List<String>>(
-              future: chapterPages, // Xây dựng nội dung dựa trên các trang truyện có trong chương.
+              future: chapterPages,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator()); // Hiển thị vòng xoay khi đang tải.
+                  return Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
-                  return Center(child: Text('Lỗi: ${snapshot.error}')); // Thông báo lỗi nếu có.
+                  return Center(child: Text('Lỗi: ${snapshot.error}'));
                 } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(child: Text('Không có trang nào.')); // Thông báo nếu không có trang.
+                  return Center(child: Text('Không có trang nào.'));
                 }
 
                 return ListView.builder(
-                  controller: _scrollController, // Quản lý cuộn trang.
-                  itemCount: displayedPages.length, // Số lượng trang.
+                  controller: _scrollController,
+                  itemCount: displayedPages.length,
                   itemBuilder: (context, index) {
                     final imageUrl = displayedPages[index];
                     if (imageUrl == null) {
                       return Container(
-                        color: Colors.grey[300], // Hiển thị nền xám khi trang chưa tải xong.
+                        color: Colors.grey[300],
                         height: 250,
-                        child: Center(child: CircularProgressIndicator()), // Hiển thị vòng xoay khi tải.
+                        child: Center(child: CircularProgressIndicator()),
                       );
                     }
 
                     return CachedImageWidget(
-                      imageUrl: imageUrl, // Hiển thị hình ảnh đã được lưu trữ trong bộ nhớ đệm.
+                      imageUrl: imageUrl,
                       cacheManager: cacheManager,
                     );
                   },
                 );
               },
             ),
-
-            // Thanh công cụ.
+            // Thanh công cụ
             if (logic.areBarsVisible) ...[
-              //Thanh tiêu đề chapter
+              // Thanh tiêu đề
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
                 child: Container(
-                  color: Colors.black54, // Thanh trên cùng có nền đen mờ.
+                  color: Colors.black54,
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.arrow_back, color: Colors.white), // Nút quay lại.
+                        icon: Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () {
-                          Navigator.pop(context); // Quay lại màn hình trước.
+                          Navigator.pop(context);
                         },
                       ),
                       Expanded(
                         child: Center(
                           child: Text(
-                            widget.chapter.chapterName, // Hiển thị tên chương.
+                            widget.chapter.chapterName,
                             style: TextStyle(color: Colors.white, fontSize: 18),
                             textAlign: TextAlign.center,
                           ),
                         ),
                       ),
-                      SizedBox(width: 48), // Khoảng trống để căn giữa.
+                      SizedBox(width: 48),
                     ],
                   ),
                 ),
               ),
-
               // Thanh Taskbar
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 child: Container(
-                  color: Colors.black54, // Thanh dưới cùng có nền đen mờ.
+                  color: Colors.black54,
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Nút quay về chapter trước đó
                       IconButton(
-                        icon: Icon(Icons.arrow_back, color: Colors.white), // Nút chương trước.
+                        icon: Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () => logic.goToPreviousChapter(context, widget.chapter, logic.getCurrentIndex(widget.chapter)),
                       ),
-                      // Nút cài đặt
                       IconButton(
-                        icon: Icon(Icons.settings, color: Colors.white), // Nút cài đặt.
+                        icon: Icon(Icons.settings, color: Colors.white),
                         onPressed: () {
-                          // Xử lý cài đặt.
+                          // Xử lý cài đặt
                         },
                       ),
-                      // Nút quay về trang chủ
                       IconButton(
-                        icon: Icon(Icons.home, color: Colors.white), // Nút về trang chủ.
+                        icon: Icon(Icons.home, color: Colors.white),
                         onPressed: () {
-                          // Xử lý về trang chủ.
+                          // Điều hướng về trang chủ
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/home', // Route của trang chủ
+                                (Route<dynamic> route) => false, // Xóa hết stack navigation để về trang gốc
+                          );
                         },
                       ),
-                      // Nút theo dõi truyện
+                      // Nút theo dõi
                       IconButton(
-                        icon: Icon(Icons.bookmark, color: Colors.white), // Nút đánh dấu.
-                        onPressed: () => logic.followManga(context, widget.chapter.mangaId),
+                        icon: Icon(
+                          Icons.bookmark,
+                          color: isFollowing ? Colors.green : Colors.white, // Thay đổi màu sắc dựa trên trạng thái
+                        ),
+                        onPressed: () async {
+                          if (isFollowing) {
+                            // Nếu đang theo dõi, bỏ theo dõi
+                            await logic.removeFromFollowing(context, widget.chapter.mangaId);
+                            setState(() {
+                              isFollowing = false;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã bỏ theo dõi truyện.')));
+                          } else {
+                            // Nếu không theo dõi, theo dõi manga
+                            await logic.followManga(context, widget.chapter.mangaId);
+                            setState(() {
+                              isFollowing = true;
+                            });
+                          }
+                        },
                       ),
-                      // Nút sang chapter tiếp theo
                       IconButton(
-                        icon: Icon(Icons.arrow_forward, color: Colors.white), // Nút chương sau.
+                        icon: Icon(Icons.arrow_forward, color: Colors.white),
                         onPressed: () => logic.goToNextChapter(context, widget.chapter, logic.getCurrentIndex(widget.chapter)),
                       ),
                     ],
                   ),
                 ),
-              )
+              ),
             ],
           ],
         ),
@@ -181,3 +206,4 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     );
   }
 }
+

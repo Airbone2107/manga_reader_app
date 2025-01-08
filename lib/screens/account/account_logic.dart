@@ -1,4 +1,6 @@
 // Thư viện Flutter và các gói cần thiết
+import 'dart:io';
+
 import 'package:flutter/material.dart'; // Thư viện Flutter chính
 import 'package:google_sign_in/google_sign_in.dart'; // Thư viện đăng nhập Google
 
@@ -24,7 +26,6 @@ class AccountScreenLogic {
   final Map<String, dynamic> _mangaCache = {};
 
   // Các biến trạng thái
-  GoogleSignInAccount? currentUser;
   User? user;
   bool isLoading = false;
   late BuildContext context;
@@ -38,9 +39,24 @@ class AccountScreenLogic {
   Future<void> init(BuildContext context, VoidCallback refreshUI) async {
     this.context = context;
     this.refreshUI = refreshUI;
-    await _userService.initToken();
-    _initializeGoogleSignIn();
-    await _loadStoredUser();
+
+    try {
+      user = await _fetchUserData();
+      refreshUI();
+    } on HttpException catch (e) {
+      if (e.message == '403') {
+        try {
+          await handleSignIn();
+        } catch (signInError) {
+          user = null;
+          refreshUI();
+        }
+      } else {
+        print('Lỗi khác trong init: ${e.message}');
+      }
+    } catch (e) {
+      print('Lỗi không xác định trong init: $e');
+    }
   }
 
   /// Hủy logic và giải phóng tài nguyên.
@@ -51,24 +67,6 @@ class AccountScreenLogic {
   // ----------------------------
   // 2. Xử lý đăng nhập và đăng xuất
   // ----------------------------
-
-  /// Thiết lập đăng nhập Google và xử lý sự kiện thay đổi người dùng.
-  Future<void> _initializeGoogleSignIn() async {
-    _googleSignIn.onCurrentUserChanged.listen((GoogleSignInAccount? account) async {
-      currentUser = account;
-      refreshUI();
-
-      if (currentUser != null) {
-        await _fetchUserData(currentUser!);
-      }
-    });
-
-    try {
-      await _googleSignIn.signInSilently();
-    } catch (e) {
-      print('Lỗi đăng nhập tự động: $e');
-    }
-  }
 
   /// Xử lý đăng nhập Google khi người dùng nhấn nút đăng nhập.
   Future<void> handleSignIn() async {
@@ -82,11 +80,13 @@ class AccountScreenLogic {
         throw Exception('Đăng nhập bị hủy');
       }
 
-      await _fetchUserData(account);
+      await _userService.signInWithGoogle(account);
+      user = await _fetchUserData();
+
       isLoading = false;
       refreshUI();
     } catch (error) {
-      print('Sign In Error: $error');
+      print('Lỗi đăng nhập: $error');
       isLoading = false;
       refreshUI();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,14 +94,12 @@ class AccountScreenLogic {
       );
     }
   }
-
   /// Xử lý đăng xuất người dùng.
   Future<void> handleSignOut() async {
     try {
       await _userService.logout();
       await _googleSignIn.signOut();
-      await StorageService.clearAll();
-      currentUser = null;
+      await StorageService.removeToken();
       user = null;
       refreshUI();
     } catch (error) {
@@ -115,58 +113,35 @@ class AccountScreenLogic {
   // 3. Xử lý dữ liệu người dùng
   // ----------------------------
 
-  /// Tải dữ liệu người dùng đã lưu từ bộ nhớ cục bộ.
-  Future<void> _loadStoredUser() async {
-    try {
-      final isLoggedIn = await _userService.isLoggedIn();
-      if (isLoggedIn) {
-        final userInfo = await StorageService.getUserInfo();
-        if (userInfo['id'] != null) {
-          user = User(
-            id: userInfo['id']!,
-            googleId: userInfo['googleId']!,
-            email: userInfo['email']!,
-            displayName: userInfo['displayName']!,
-            photoURL: userInfo['photoURL'],
-            following: [],
-            readingProgress: [],
-            createdAt: DateTime.parse(
-                userInfo['createdAt'] ?? DateTime.now().toIso8601String()),
-          );
-          await refreshUserData();
-          refreshUI();
-        }
-      }
-    } catch (e) {
-      print('Lỗi khi đọc dữ liệu đã lưu: $e');
-    }
-  }
-
   /// Làm mới dữ liệu người dùng từ API nếu đang đăng nhập.
   Future<void> refreshUserData() async {
-    if (user != null) {
-      try {
-        final updatedUser = await _userService.getUserData(user!.id);
-        user = updatedUser;
-        refreshUI();
-      } catch (e) {
-        print('Lỗi khi refresh dữ liệu từ API: $e');
-      }
-    } else if (currentUser != null) {
-      await _fetchUserData(currentUser!);
+    try {
+      user = await _fetchUserData();
+      refreshUI();
+    } catch (e) {
+      print('Lỗi khi refresh dữ liệu người dùng: $e');
     }
   }
 
-  /// Lấy thông tin người dùng từ Google và cập nhật trong ứng dụng.
-  Future<void> _fetchUserData(GoogleSignInAccount googleUser) async {
+  /// Lấy thông tin người dùng từ API và trả về một User object.
+  Future<User> _fetchUserData() async {
     try {
-      user = await _userService.signInWithGoogle(googleUser);
-      currentUser = googleUser;
+      print("Đang lấy dữ liệu người dùng...");
+      final userData = await _userService.getUserData();
+      print("Dữ liệu người dùng đã tải thành công");
+      return userData;
+    } on HttpException catch (e) {
+      if (e.message == '403') {
+        throw HttpException('403');
+      } else {
+        throw HttpException('Lỗi không xác định khi lấy dữ liệu người dùng: ${e.message}');
+      }
     } catch (e) {
-      print('Fetch user data error: $e');
-      throw Exception('Lỗi khi lấy thông tin: $e');
+      throw Exception('Lỗi khi tải dữ liệu người dùng: $e');
     }
   }
+
+
 
   // ----------------------------
   // 4. Xử lý danh sách truyện và UI
@@ -182,9 +157,9 @@ class AccountScreenLogic {
       isLoading = true;
       refreshUI();
 
-      await _userService.removeFromFollowing(user!.id, mangaId);
-      final updatedUser = await _userService.getUserData(user!.id);
-      user = updatedUser;
+      await _userService.removeFromFollowing(mangaId);
+      user = await _fetchUserData();
+
       isLoading = false;
       refreshUI();
 

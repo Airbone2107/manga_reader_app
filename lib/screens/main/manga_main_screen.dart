@@ -2,7 +2,7 @@ import '../../services/model.dart';
 import '../account/account_screen.dart';
 import '../search/manga_search_screen.dart';
 import 'package:flutter/material.dart';
-import '../../services/show_manga_list/manga_grid_view.dart';
+import '../../services/manga_grid_view.dart';
 
 class MangaMainScreen extends StatefulWidget {
   @override
