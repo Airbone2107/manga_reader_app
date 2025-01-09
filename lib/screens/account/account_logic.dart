@@ -95,6 +95,7 @@ class AccountScreenLogic {
       );
     }
   }
+
   /// Xử lý đăng xuất người dùng.
   Future<void> handleSignOut() async {
     try {
@@ -135,14 +136,13 @@ class AccountScreenLogic {
       if (e.message == '403') {
         throw HttpException('403');
       } else {
-        throw HttpException('Lỗi không xác định khi lấy dữ liệu người dùng: ${e.message}');
+        throw HttpException(
+            'Lỗi không xác định khi lấy dữ liệu người dùng: ${e.message}');
       }
     } catch (e) {
       throw Exception('Lỗi khi tải dữ liệu người dùng: $e');
     }
   }
-
-
 
   // ----------------------------
   // 4. Xử lý danh sách truyện và UI
@@ -178,9 +178,11 @@ class AccountScreenLogic {
   }
 
   /// Lấy thông tin danh sách manga.
-  Future<List<Map<String, dynamic>>> _getMangaListInfo(List<String> mangaIds) async {
+  Future<List<Map<String, dynamic>>> _getMangaListInfo(
+      List<String> mangaIds) async {
     try {
-      final List<dynamic> mangas = await _mangaDexService.fetchMangaByIds(mangaIds);
+      final List<dynamic> mangas =
+          await _mangaDexService.fetchMangaByIds(mangaIds);
       for (var manga in mangas) {
         _mangaCache[manga['id']] = manga;
       }
@@ -192,28 +194,30 @@ class AccountScreenLogic {
   }
 
   /// Xây dựng widget hiển thị danh sách manga.
-  Widget buildMangaListView(String title, List<String> mangaIds, {bool isFollowing = false}) {
+  Widget buildMangaListView(String title, List<String> mangaIds,
+      {bool isFollowing = false}) {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _getMangaListInfo(mangaIds),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Text('Lỗi: ${snapshot.error}');
-        }
-
-        final mangas = snapshot.data ?? [];
-        if (mangas.isEmpty) {
           return Card(
-            margin: EdgeInsets.all(8),
             child: ListTile(
               title: Text(title),
-              subtitle: Text('Không có dữ liệu'),
+              subtitle: Center(child: CircularProgressIndicator()),
             ),
           );
         }
+
+        if (snapshot.hasError) {
+          return Card(
+            child: ListTile(
+              title: Text(title),
+              subtitle: Text('Lỗi: ${snapshot.error}'),
+            ),
+          );
+        }
+
+        final mangas = snapshot.data ?? [];
 
         return Card(
           margin: EdgeInsets.all(8),
@@ -233,10 +237,27 @@ class AccountScreenLogic {
                 itemCount: mangas.length,
                 itemBuilder: (context, index) {
                   final manga = mangas[index];
+                  final mangaId = mangaIds[index];
+
+                  // Tìm tiến độ đọc cho manga này nếu đang ở phần lịch sử đọc
+                  String? lastReadChapter;
+                  if (!isFollowing && user != null) {
+                    final progress = user!.readingProgress.firstWhere(
+                      (p) => p.mangaId == mangaId,
+                      orElse: () => ReadingProgress(
+                        mangaId: mangaId,
+                        lastChapter: '',
+                        lastReadAt: DateTime.now(),
+                      ),
+                    );
+                    lastReadChapter = progress.lastChapter;
+                  }
+
                   return _buildMangaListItem(
                     manga,
                     isFollowing: isFollowing,
-                    mangaId: mangaIds[index],
+                    mangaId: mangaId,
+                    lastReadChapter: lastReadChapter,
                   );
                 },
               ),
@@ -247,7 +268,12 @@ class AccountScreenLogic {
     );
   }
 
-  Widget _buildMangaListItem(Map<String, dynamic> manga, {bool isFollowing = false, required String mangaId}) {
+  Widget _buildMangaListItem(
+    Map<String, dynamic> manga, {
+    bool isFollowing = false,
+    required String mangaId,
+    String? lastReadChapter,
+  }) {
     final title = manga['attributes']?['title']?['en'] ?? 'Không có tiêu đề';
 
     return Container(
@@ -302,7 +328,7 @@ class AccountScreenLogic {
             // Thông tin manga và chapters
             Expanded(
               child: Column(
-                mainAxisSize: MainAxisSize.min, // Thêm dòng này
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -318,7 +344,7 @@ class AccountScreenLogic {
                   SizedBox(height: 8),
                   // Danh sách chapter
                   FutureBuilder<List<dynamic>>(
-                    future: _mangaDexService.fetchChapters(mangaId, 'en,vi', maxChapters: 3),
+                    future: _mangaDexService.fetchChapters(mangaId, 'en,vi'),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return SizedBox(
@@ -330,25 +356,48 @@ class AccountScreenLogic {
                         return Text('Không thể tải chapter');
                       }
 
+                      List<dynamic> chapters = snapshot.data!;
                       Map<String, List<dynamic>> chaptersByLanguage = {};
-                      for (var chapter in snapshot.data!) {
-                        String lang = chapter['attributes']['translatedLanguage'];
-                        if (!chaptersByLanguage.containsKey(lang)) {
-                          chaptersByLanguage[lang] = [];
+
+                      // Nếu có lastReadChapter, tìm chapter tương ứng
+                      if (lastReadChapter != null &&
+                          lastReadChapter.isNotEmpty) {
+                        var lastReadChapterData = chapters.firstWhere(
+                          (chapter) => chapter['id'] == lastReadChapter,
+                          orElse: () => null,
+                        );
+
+                        if (lastReadChapterData != null) {
+                          String lang = lastReadChapterData['attributes']
+                              ['translatedLanguage'];
+                          chaptersByLanguage[lang] = [lastReadChapterData];
                         }
-                        chaptersByLanguage[lang]!.add(chapter);
+                      } else {
+                        // Nếu không có lastReadChapter hoặc đang ở chế độ following,
+                        // hiển thị chapter mới nhất như cũ
+                        for (var chapter in snapshot.data!.take(3)) {
+                          String lang =
+                              chapter['attributes']['translatedLanguage'];
+                          if (!chaptersByLanguage.containsKey(lang)) {
+                            chaptersByLanguage[lang] = [];
+                          }
+                          chaptersByLanguage[lang]!.add(chapter);
+                        }
                       }
 
                       return Column(
-                        mainAxisSize: MainAxisSize.min, // Thêm dòng này
+                        mainAxisSize: MainAxisSize.min,
                         children: chaptersByLanguage.entries.map((entry) {
                           String language = entry.key;
                           var chapters = entry.value;
                           var latestChapter = chapters.first;
 
-                          String chapterNumber = latestChapter['attributes']['chapter'] ?? 'N/A';
-                          String chapterTitle = latestChapter['attributes']['title'] ?? '';
-                          String displayTitle = chapterTitle.isEmpty || chapterTitle == chapterNumber
+                          String chapterNumber =
+                              latestChapter['attributes']['chapter'] ?? 'N/A';
+                          String chapterTitle =
+                              latestChapter['attributes']['title'] ?? '';
+                          String displayTitle = chapterTitle.isEmpty ||
+                                  chapterTitle == chapterNumber
                               ? 'Chương $chapterNumber'
                               : 'Chương $chapterNumber: $chapterTitle';
 
@@ -356,7 +405,9 @@ class AccountScreenLogic {
                             height: 40, // Cố định chiều cao cho mỗi chapter
                             child: ListTile(
                               dense: true, // Thêm dòng này để giảm padding
-                              visualDensity: VisualDensity(vertical: -4), // Thêm dòng này để giảm chiều cao
+                              visualDensity: VisualDensity(
+                                  vertical:
+                                      -4), // Thêm dòng này để giảm chiều cao
                               contentPadding: EdgeInsets.zero,
                               leading: Container(
                                 width: 30, // Cố định chiều rộng cho language
@@ -380,11 +431,13 @@ class AccountScreenLogic {
                                     context: context,
                                     barrierDismissible: false,
                                     builder: (BuildContext context) {
-                                      return Center(child: CircularProgressIndicator());
+                                      return Center(
+                                          child: CircularProgressIndicator());
                                     },
                                   );
 
-                                  final fullChapterList = await _mangaDexService.fetchChapters(
+                                  final fullChapterList =
+                                      await _mangaDexService.fetchChapters(
                                     mangaId,
                                     language,
                                   );
@@ -407,7 +460,9 @@ class AccountScreenLogic {
                                 } catch (e) {
                                   Navigator.of(context).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Lỗi khi tải danh sách chapter: $e')),
+                                    SnackBar(
+                                        content: Text(
+                                            'Lỗi khi tải danh sách chapter: $e')),
                                   );
                                 }
                               },
@@ -437,5 +492,3 @@ class AccountScreenLogic {
     );
   }
 }
-
-
