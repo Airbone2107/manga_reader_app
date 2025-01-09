@@ -25,7 +25,8 @@ class UserService {
       final googleAuth = await googleUser.authentication;
       print('Authenticating with Google...');
 
-      final accessToken = googleAuth.accessToken; // Dùng accessToken thay vì idToken
+      final accessToken =
+          googleAuth.accessToken; // Dùng accessToken thay vì idToken
       if (accessToken == null) {
         throw Exception('Không lấy được Access Token từ Google');
       }
@@ -99,7 +100,8 @@ class UserService {
     } else if (response.statusCode == 403) {
       throw HttpException('403'); // Token hết hạn hoặc không hợp lệ
     } else {
-      throw HttpException('Không thể lấy thông tin user. Mã lỗi: ${response.statusCode}');
+      throw HttpException(
+          'Không thể lấy thông tin user. Mã lỗi: ${response.statusCode}');
     }
   }
 
@@ -151,7 +153,8 @@ class UserService {
   /// Kiểm tra xem người dùng có đang theo dõi một manga nào đó không
   Future<bool> checkIfUserIsFollowing(String mangaId) async {
     try {
-      final token = await StorageService.getToken(); // Lấy token người dùng từ Storage
+      final token =
+          await StorageService.getToken(); // Lấy token người dùng từ Storage
       if (token == null) {
         return false; // Nếu không có token, mặc định không theo dõi
       }
@@ -179,7 +182,7 @@ class UserService {
   }
 
   /// Cập nhật tiến độ đọc manga
-  Future<void> updateReadingProgress(String mangaId, int lastChapter) async {
+  Future<void> updateReadingProgress(String mangaId, String lastChapter) async {
     final token = await _getTokenOrThrow();
 
     try {
@@ -188,8 +191,8 @@ class UserService {
         headers: _buildHeaders(token),
         body: jsonEncode({
           'mangaId': mangaId,
-          'lastChapter': lastChapter.toString(),
-        }), // Gửi mangaId và lastChapter trong body
+          'lastChapter': lastChapter,
+        }),
       );
 
       if (response.statusCode != 200) {

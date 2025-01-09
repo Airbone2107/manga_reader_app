@@ -29,10 +29,14 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   void initState() {
     super.initState();
     logic = ChapterReaderLogic(
-      userService: UserService(baseUrl: 'https://manga-reader-app-backend.onrender.com'),
+      userService:
+          UserService(baseUrl: 'https://manga-reader-app-backend.onrender.com'),
       setState: setState,
       scrollController: _scrollController,
     );
+
+    //Cập nhật tiến độ đọc ngay khi mở chương
+    logic.updateProgress(widget.chapter.mangaId, widget.chapter.chapterId);
 
     chapterPages = logic.fetchChapterPages(widget.chapter.chapterId);
     chapterPages.then((pages) {
@@ -149,7 +153,10 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                     children: [
                       IconButton(
                         icon: Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => logic.goToPreviousChapter(context, widget.chapter, logic.getCurrentIndex(widget.chapter)),
+                        onPressed: () => logic.goToPreviousChapter(
+                            context,
+                            widget.chapter,
+                            logic.getCurrentIndex(widget.chapter)),
                       ),
                       IconButton(
                         icon: Icon(Icons.settings, color: Colors.white),
@@ -164,7 +171,8 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                           Navigator.pushNamedAndRemoveUntil(
                             context,
                             '/home', // Route của trang chủ
-                                (Route<dynamic> route) => false, // Xóa hết stack navigation để về trang gốc
+                            (Route<dynamic> route) =>
+                                false, // Xóa hết stack navigation để về trang gốc
                           );
                         },
                       ),
@@ -172,19 +180,25 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                       IconButton(
                         icon: Icon(
                           Icons.bookmark,
-                          color: isFollowing ? Colors.green : Colors.white, // Thay đổi màu sắc dựa trên trạng thái
+                          color: isFollowing
+                              ? Colors.green
+                              : Colors
+                                  .white, // Thay đổi màu sắc dựa trên trạng thái
                         ),
                         onPressed: () async {
                           if (isFollowing) {
                             // Nếu đang theo dõi, bỏ theo dõi
-                            await logic.removeFromFollowing(context, widget.chapter.mangaId);
+                            await logic.removeFromFollowing(
+                                context, widget.chapter.mangaId);
                             setState(() {
                               isFollowing = false;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã bỏ theo dõi truyện.')));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('Đã bỏ theo dõi truyện.')));
                           } else {
                             // Nếu không theo dõi, theo dõi manga
-                            await logic.followManga(context, widget.chapter.mangaId);
+                            await logic.followManga(
+                                context, widget.chapter.mangaId);
                             setState(() {
                               isFollowing = true;
                             });
@@ -193,7 +207,10 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                       ),
                       IconButton(
                         icon: Icon(Icons.arrow_forward, color: Colors.white),
-                        onPressed: () => logic.goToNextChapter(context, widget.chapter, logic.getCurrentIndex(widget.chapter)),
+                        onPressed: () => logic.goToNextChapter(
+                            context,
+                            widget.chapter,
+                            logic.getCurrentIndex(widget.chapter)),
                       ),
                     ],
                   ),
@@ -206,4 +223,3 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     );
   }
 }
-

@@ -32,7 +32,8 @@ class User {
         readingProgress: (json['readingManga'] as List? ?? [])
             .map((x) => ReadingProgress.fromJson(x))
             .toList(),
-        createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+        createdAt: DateTime.parse(
+            json['createdAt'] ?? DateTime.now().toIso8601String()),
       );
     } catch (e) {
       print('Error parsing User JSON: $e');
@@ -41,9 +42,10 @@ class User {
     }
   }
 }
+
 class ReadingProgress {
   final String mangaId;
-  final int lastChapter;
+  final String lastChapter;
   final DateTime lastReadAt;
 
   ReadingProgress({
@@ -56,8 +58,9 @@ class ReadingProgress {
     try {
       return ReadingProgress(
         mangaId: json['mangaId'] ?? '',
-        lastChapter: json['lastChapter'] ?? 0,
-        lastReadAt: DateTime.parse(json['lastReadAt'] ?? DateTime.now().toIso8601String()),
+        lastChapter: json['lastChapter'] ?? '',
+        lastReadAt: DateTime.parse(
+            json['lastReadAt'] ?? DateTime.now().toIso8601String()),
       );
     } catch (e) {
       print('Error parsing ReadingProgress JSON: $e');
@@ -126,10 +129,12 @@ class SortManga {
     if (title!.isNotEmpty) params['title'] = title;
     if (status != 'Tất cả') params['status[]'] = [status!.toLowerCase()];
     if (safety != 'Tất cả') params['contentRating[]'] = [safety!.toLowerCase()];
-    if (demographic != 'Tất cả') params['publicationDemographic[]'] = [demographic!.toLowerCase()];
+    if (demographic != 'Tất cả')
+      params['publicationDemographic[]'] = [demographic!.toLowerCase()];
     if (includedTags!.isNotEmpty) params['includedTags[]'] = includedTags;
     if (excludedTags!.isNotEmpty) params['excludedTags[]'] = excludedTags;
-    if (languages!.isNotEmpty) params['availableTranslatedLanguage[]'] = languages;
+    if (languages!.isNotEmpty)
+      params['availableTranslatedLanguage[]'] = languages;
     params['order[updatedAt]'] = sortBy == 'Mới cập nhật' ? 'desc' : 'asc';
 
     return params;

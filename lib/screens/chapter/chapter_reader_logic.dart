@@ -29,6 +29,7 @@ class ChapterReaderLogic {
     return chapter.chapterList
         .indexWhere((ch) => ch['id'] == chapter.chapterId);
   }
+
   /// Tạo tên hiển thị cho chương dựa trên thông tin thuộc tính của nó.
   String getChapterDisplayName(Map<String, dynamic> chapter) {
     String chapterNumber = chapter['attributes']['chapter'] ?? 'N/A';
@@ -37,6 +38,7 @@ class ChapterReaderLogic {
         ? 'Chương $chapterNumber'
         : 'Chương $chapterNumber: $chapterTitle';
   }
+
   /// Lấy danh sách các trang của chương dựa trên ID chương.
   Future<List<String>> fetchChapterPages(String chapterId) async {
     return MangaDexService().fetchChapterPages(chapterId);
@@ -45,7 +47,8 @@ class ChapterReaderLogic {
   // Hàm dùng để xử lý các chức năng trong màn hình đọc truyện
   // Chuyển chương
   /// Điều hướng đến chương tiếp theo.
-  void goToNextChapter(BuildContext context, Chapter chapter, int currentIndex) {
+  void goToNextChapter(
+      BuildContext context, Chapter chapter, int currentIndex) {
     if (currentIndex > 0) {
       var prevChapter = chapter.chapterList[currentIndex - 1];
       Navigator.pushReplacement(
@@ -63,8 +66,10 @@ class ChapterReaderLogic {
       );
     }
   }
+
   /// Điều hướng đến chương trước đó.
-  void goToPreviousChapter(BuildContext context, Chapter chapter, int currentIndex) {
+  void goToPreviousChapter(
+      BuildContext context, Chapter chapter, int currentIndex) {
     if (currentIndex < chapter.chapterList.length - 1) {
       var nextChapter = chapter.chapterList[currentIndex + 1];
       Navigator.pushReplacement(
@@ -142,7 +147,8 @@ class ChapterReaderLogic {
         return;
       }
 
-      await userService.removeFromFollowing(mangaId); // Gọi API để bỏ theo dõi manga
+      await userService
+          .removeFromFollowing(mangaId); // Gọi API để bỏ theo dõi manga
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đã bỏ theo dõi truyện.')),
@@ -161,11 +167,21 @@ class ChapterReaderLogic {
         return false; // Nếu chưa đăng nhập, mặc định không theo dõi
       }
 
-      final response = await userService.checkIfUserIsFollowing(mangaId); // API trả về true/false
+      final response = await userService
+          .checkIfUserIsFollowing(mangaId); // API trả về true/false
       return response; // Trả về true nếu theo dõi, false nếu không
     } catch (e) {
       print("Lỗi khi kiểm tra theo dõi: $e");
       return false;
+    }
+  }
+
+  /// Cập nhật tiến độ đọc truyện
+  Future<void> updateProgress(String mangaId, String chapterId) async {
+    try {
+      await userService.updateReadingProgress(mangaId, chapterId);
+    } catch (e) {
+      print('Lỗi khi cập nhật tiến độ đọc: $e');
     }
   }
 }
