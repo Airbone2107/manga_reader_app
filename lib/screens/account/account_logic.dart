@@ -194,9 +194,17 @@ class AccountScreenLogic {
   }
 
   /// Xây dựng widget hiển thị danh sách manga.
-  Widget buildMangaListView(String title, List<String> mangaIds,
-      {bool isFollowing = false}) {
+  Widget buildMangaListView(
+    String title,
+    List<String> mangaIds, {
+    bool isFollowing = false,
+    Key? key,
+  }) {
+    // Tạo một Map để cache dữ liệu manga
+    final Map<String, Map<String, dynamic>> _mangaCache = {};
+
     return FutureBuilder<List<Map<String, dynamic>>>(
+      key: key, // Sử dụng key được truyền vào
       future: _getMangaListInfo(mangaIds),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -219,6 +227,11 @@ class AccountScreenLogic {
 
         final mangas = snapshot.data ?? [];
 
+        // Cache manga data
+        for (var manga in mangas) {
+          _mangaCache[manga['id']] = manga;
+        }
+
         return Card(
           margin: EdgeInsets.all(8),
           child: Column(
@@ -234,12 +247,17 @@ class AccountScreenLogic {
               ListView.builder(
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
-                itemCount: mangas.length,
+                itemCount: mangaIds.length,
                 itemBuilder: (context, index) {
-                  final manga = mangas[index];
                   final mangaId = mangaIds[index];
+                  final manga = _mangaCache[mangaId];
 
-                  // Tìm tiến độ đọc cho manga này nếu đang ở phần lịch sử đọc
+                  if (manga == null) {
+                    return SizedBox
+                        .shrink(); // Skip if manga data is not available
+                  }
+
+                  // Tìm tiến độ đọc cho manga này
                   String? lastReadChapter;
                   if (!isFollowing && user != null) {
                     final progress = user!.readingProgress.firstWhere(
@@ -258,6 +276,7 @@ class AccountScreenLogic {
                     isFollowing: isFollowing,
                     mangaId: mangaId,
                     lastReadChapter: lastReadChapter,
+                    key: ValueKey('manga-$mangaId'), // Thêm key cho mỗi item
                   );
                 },
               ),
@@ -273,10 +292,17 @@ class AccountScreenLogic {
     bool isFollowing = false,
     required String mangaId,
     String? lastReadChapter,
+    Key? key,
   }) {
-    final title = manga['attributes']?['title']?['en'] ?? 'Không có tiêu đề';
+    // Lấy tiêu đề từ các ngôn ngữ khác nhau theo thứ tự ưu tiên
+    final title = manga['attributes']?['title']?['en'] ??
+        manga['attributes']?['title']?['vi'] ??
+        manga['attributes']?['title']?.values.firstWhere(
+            (title) => title != null && title.isNotEmpty,
+            orElse: () => 'Không có tiêu đề');
 
     return Container(
+      key: key,
       padding: const EdgeInsets.all(12.0),
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       decoration: BoxDecoration(

@@ -36,7 +36,8 @@ class MangaDexService {
       var data = jsonDecode(response.body);
       return data['data'];
     } else if (response.statusCode == 503) {
-      throw Exception('Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
+      throw Exception(
+          'Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
     } else {
       logError('fetchManga', response);
       throw Exception('Lỗi khi tải manga: ${response.statusCode}');
@@ -45,7 +46,8 @@ class MangaDexService {
 
 // Lấy chi tiết một manga
   Future<Map<String, dynamic>> fetchMangaDetails(String mangaId) async {
-    final response = await http.get(Uri.parse('$baseUrl/manga/$mangaId?includes[]=author'));
+    final response =
+        await http.get(Uri.parse('$baseUrl/manga/$mangaId?includes[]=author'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -57,12 +59,16 @@ class MangaDexService {
   }
 
   // Lấy danh sách các chương của manga với Pagination
-  Future<List<dynamic>> fetchChapters(String mangaId, String languages, {String order = 'desc', int? maxChapters}) async {
-    List<String> languageList = languages.split(',').map((lang) => lang.trim()).toList();
-    languageList.removeWhere((lang) => !RegExp(r'^[a-z]{2}(-[a-z]{2})?$').hasMatch(lang));
+  Future<List<dynamic>> fetchChapters(String mangaId, String languages,
+      {String order = 'desc', int? maxChapters}) async {
+    List<String> languageList =
+        languages.split(',').map((lang) => lang.trim()).toList();
+    languageList.removeWhere(
+        (lang) => !RegExp(r'^[a-z]{2}(-[a-z]{2})?$').hasMatch(lang));
 
     if (languageList.isEmpty) {
-      throw Exception('Danh sách ngôn ngữ không hợp lệ. Vui lòng kiểm tra cài đặt.');
+      throw Exception(
+          'Danh sách ngôn ngữ không hợp lệ. Vui lòng kiểm tra cài đặt.');
     }
 
     List<dynamic> allChapters = [];
@@ -70,7 +76,8 @@ class MangaDexService {
     int limit = 100;
 
     while (true) {
-      final response = await http.get(Uri.parse('$baseUrl/manga/$mangaId/feed?limit=$limit&offset=$offset&translatedLanguage[]=${languageList.join('&translatedLanguage[]=')}&order[chapter]=$order'));
+      final response = await http.get(Uri.parse(
+          '$baseUrl/manga/$mangaId/feed?limit=$limit&offset=$offset&translatedLanguage[]=${languageList.join('&translatedLanguage[]=')}&order[chapter]=$order'));
 
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
@@ -88,10 +95,12 @@ class MangaDexService {
 
         offset += limit;
       } else if (response.statusCode == 503) {
-        throw Exception('Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
+        throw Exception(
+            'Máy chủ MangaDex hiện đang bảo trì, xin vui lòng thử lại sau!');
       } else {
         logError('fetchChapters', response);
-        throw Exception('Lỗi trong hàm fetchChapters:\nMã trạng thái: ${response.statusCode}\nNội dung phản hồi: ${response.body}');
+        throw Exception(
+            'Lỗi trong hàm fetchChapters:\nMã trạng thái: ${response.statusCode}\nNội dung phản hồi: ${response.body}');
       }
     }
 
@@ -100,7 +109,8 @@ class MangaDexService {
 
   // Lấy ảnh bìa của manga
   Future<String> fetchCoverUrl(String mangaId) async {
-    final response = await http.get(Uri.parse('$baseUrl/cover?manga[]=$mangaId'));
+    final response =
+        await http.get(Uri.parse('$baseUrl/cover?manga[]=$mangaId'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -119,7 +129,8 @@ class MangaDexService {
 
   // Lấy các trang của chương
   Future<List<String>> fetchChapterPages(String chapterId) async {
-    final response = await http.get(Uri.parse('$baseUrl/at-home/server/$chapterId'));
+    final response =
+        await http.get(Uri.parse('$baseUrl/at-home/server/$chapterId'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -139,7 +150,8 @@ class MangaDexService {
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      return data['data'] ?? []; // Trả về toàn bộ dữ liệu tag, bao gồm id và attributes
+      return data['data'] ??
+          []; // Trả về toàn bộ dữ liệu tag, bao gồm id và attributes
     } else {
       logError('fetchTags', response);
       throw Exception('Lỗi khi tải danh sách tags');
