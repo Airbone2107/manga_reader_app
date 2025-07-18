@@ -176,14 +176,22 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  google_identity_services_web:
+    dependency: transitive
+    description:
+      name: google_identity_services_web
+      sha256: "5d187c46dc59e02646e10fe82665fc3884a9b71bc1c90c2b8b749316d33ee454"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.3+1"
   google_sign_in:
     dependency: "direct main"
     description:
       name: google_sign_in
-      sha256: "821f354c053d51a2d417b02d42532a19a6ea8057d2f9ebb8863c07d81c98aaf9"
+      sha256: fad6ddc80c427b0bba705f2116204ce1173e09cf299f85e053d57a55e5b2dd56
       url: "https://pub.dev"
     source: hosted
-    version: "5.4.4"
+    version: "6.2.2"
   google_sign_in_android:
     dependency: transitive
     description:
@@ -212,10 +220,10 @@ packages:
     dependency: transitive
     description:
       name: google_sign_in_web
-      sha256: "75cc41ebc53b1756320ee14d9c3018ad3e6cea298147dbcd86e9d0c8d6720b40"
+      sha256: ada595df6c30cead48e66b1f3a050edf0c5cf2ba60c185d69690e08adcc6281b
       url: "https://pub.dev"
     source: hosted
-    version: "0.10.2+1"
+    version: "0.12.4+3"
   http:
     dependency: "direct main"
     description:
@@ -232,14 +240,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.2"
-  intl:
-    dependency: "direct main"
-    description:
-      name: intl
-      sha256: "3bc132a9dbce73a7e4a21a17d06e1878839ffbf975568bc875c60537824b0c4d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.18.1"
   js:
     dependency: transitive
     description:
