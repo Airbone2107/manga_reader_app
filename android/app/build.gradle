@@ -31,10 +31,10 @@ android {
         versionName = flutter.versionName
         signingConfigs {
             debug {
-                storeFile file('userdatabase-keystore.p12')
-                storePassword 'minhnhat2004hcm'
-                keyAlias 'userdatabase'
-                keyPassword 'minhnhat2004hcm'
+                storeFile file('my-release-key.jks')
+                storePassword '240873'
+                keyAlias 'my-key-alias'
+                keyPassword '240873'
             }
         }
     }
