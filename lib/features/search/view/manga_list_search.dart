@@ -1,5 +1,3 @@
-// lib/features/search/view/manga_list_search.dart
-import 'package:flutter/rendering.dart';
 import '../../../data/models/sort_manga_model.dart';
 import 'package:flutter/material.dart';
 import '../../../shared_widgets/manga_grid_view.dart';

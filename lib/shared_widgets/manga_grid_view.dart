@@ -236,7 +236,7 @@ class _MangaGridViewState extends State<MangaGridView> {
               borderRadius: BorderRadius.circular(8.0),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
+                  color: Colors.grey.withAlpha(51),
                   blurRadius: 6.0,
                   offset: Offset(0, 2),
                 ),
